@@ -173,6 +173,7 @@ def ask_for_strings(form, update, chat_data):
         add = add + '\n\n' + strings[chat_data['lang']]['add_lang'].replace('@language', chat_data['bot_languages'][
             chat_data['bot_lang'][0]][1] + ' (' + chat_data['bot_languages'][chat_data['bot_lang'][0]][
                                                                                 0] + ')') + ' ⬇️'
+        chat_data['lang_read'] = 0
     update.callback_query.message.edit_text(get_adding_text(chat_data, add=add), parse_mode=ParseMode.MARKDOWN)
     chat_data["mode"] = "get_file"
 
@@ -275,18 +276,45 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
         msg = msg + "\n\n" + file_type.upper() + strings[chat_data['lang']]['add_file'] + " ✅"
     bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                           parse_mode=ParseMode.MARKDOWN)
+    bot_lang = 0 if not 'lang_read' in chat_data else chat_data['lang_read']
     if not chat_data["format"] == "mono":
         str_list = list(data.keys())
+        db = Database()
+        if bot_lang == 0:
+            db.insert_strings(chat_data["bot_name"], str_list)
+            msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_strings'] + " ✅"
+            bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                                  parse_mode=ParseMode.MARKDOWN)
+        db.insert_words(data, chat_data["bot_lang"][bot_lang], chat_data["bot_name"])
+        language = chat_data['bot_languages'][chat_data['bot_lang'][bot_lang]][1] + ' (' + \
+                   chat_data['bot_languages'][chat_data['bot_lang'][bot_lang]][0] + ')'
+        msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_words'].replace("@lang",
+                                                                                                        language) + " ✅"
+        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                              parse_mode=ParseMode.MARKDOWN)
+        if chat_data['format'] == "poli":
+            if len(chat_data['bot_lang']) > bot_lang:
+                chat_data['lang_read'] = chat_data['lang_read'] + 1
+                lango = chat_data['bot_languages'][chat_data['bot_lang'][chat_data['lang_read']]][1] + ' (' + \
+                        chat_data['bot_languages'][chat_data['bot_lang'][chat_data['lang_read']]][0] + ')'
+                add = '\n\n' + strings[chat_data['lang']]['add_lango'].replace('@language', lango) + ' ⬇️'
+                bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg + add,
+                                      parse_mode=ParseMode.MARKDOWN)
+    else:
+        str_list = list(next(iter(data.values())))
         db = Database()
         db.insert_strings(chat_data["bot_name"], str_list)
         msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_strings'] + " ✅"
         bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                               parse_mode=ParseMode.MARKDOWN)
-        db.insert_words(data, chat_data["bot_lang"][0], chat_data["bot_name"])
-        msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_words'].replace("@lang", chat_data['bot_languages'][
-            chat_data['bot_lang'][0]][1] + ' (' +chat_data['bot_languages'][chat_data['bot_lang'][0]][0] + ')') + " ✅"
-        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
-                              parse_mode=ParseMode.MARKDOWN)
+        for key, value in data.items():
+            db.insert_words(value, key, chat_data["bot_name"])
+            language = chat_data['bot_languages'][key][1] + ' (' + chat_data['bot_languages'][key][0] + ')'
+            msg = msg + '\n\n' + str(len(list(value.keys()))) + " " + strings[chat_data['lang']][
+                'add_words'].replace("@lang",
+                                     language) + " ✅"
+            bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                                  parse_mode=ParseMode.MARKDOWN)
 
 
 def handle_file(bot, update, chat_data):

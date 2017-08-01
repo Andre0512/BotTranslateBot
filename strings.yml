@@ -10,6 +10,7 @@ de:
   add_poli: Eine Datei je Sprache
   add_ask: Okay, jetzt barauche ich deine Strings.
   add_lang: Fangen wir mit den Strings in @language an
+  add_lango: Sende mir als nächstes die Strings in @language
   add_format: "Folgende Formate werden unterstützt:@examples"
   add_pos: Du kannst mir eine Datei im Format `.yml` bzw `.json` senden oder mir die Strings direkt als Nachricht senden
   add_receiv: Datei @filename erhalten.
