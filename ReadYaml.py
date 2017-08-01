@@ -16,11 +16,16 @@ yaml.add_constructor(u'tag:yaml.org,2002:str', custom_str_constructor)
 # Read yaml file into string
 def get_yml(file):
     result = {}
-    with open(os.path.join(os.path.dirname(__file__), file), 'rb') as ymlfile:
-        values = yaml.load(ymlfile)
-        for k, v in values.items():
-            result[k.decode('utf-8')] = dict_byte_to_str(v)
-    return result
+    state = True
+    try:
+        with open(os.path.join(os.path.dirname(__file__), file), 'rb') as ymlfile:
+            values = yaml.load(ymlfile)
+            for k, v in values.items():
+                result[k.decode('utf-8')] = dict_byte_to_str(v)
+    except yaml.scanner.ScannerError as e:
+        result = None
+        state = str(e)
+    return result, state
 
 
 # decode bytes dictionary

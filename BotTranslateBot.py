@@ -8,6 +8,7 @@ import logging
 import pymysql as mdb
 import ReadYaml
 import json
+import os
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -133,10 +134,10 @@ def ask_for_strings(format, update, chat_data):
     add = strings[chat_data['lang']]['add_ask'] + '\n'
     if format == "mono":
         eg_yaml = '```´\nen:\n  greeting: Hello\n  state: "How are you?"```'
-        eg_json = '```\n{\n  "en":\n    {\n      greeting: "Hello",\n      state: "How are you?"\n    }\n}```'
+        eg_json = '```\n{\n  "en":\n    {\n      "greeting": "Hello",\n      "state": "How are you?"\n    }\n}```'
     else:
         eg_yaml = '```\ngreeting: Hello\nstate: "How are you?"```'
-        eg_json = '```\n[\n  {\n    greeting: "Hello",\n    state: "How are you?"\n  }\n]```'
+        eg_json = '```\n{\n  "greeting": "Hello",\n  "state": "How are you?"\n}```'
     add = add + strings[chat_data['lang']]['add_format'].replace("@examples", "\n*-YAML*\n@eg_yaml\n*-JSON*\n@eg_json")
     add = add.replace("@eg_yaml", eg_yaml).replace("@eg_json", eg_json)
     add = add + '\n' + strings[chat_data['lang']]['add_pos']
@@ -144,6 +145,7 @@ def ask_for_strings(format, update, chat_data):
         add = add + '\n\n' + strings[chat_data['lang']]['add_lang'].replace('@language', chat_data['bot_languages'][
             chat_data['bot_lang'][0]][1] + ' (' + chat_data['bot_languages'][chat_data['bot_lang'][0]][0] + ')') + ' ⬇️'
     update.callback_query.message.edit_text(get_adding_text(chat_data, add=add), parse_mode=ParseMode.MARKDOWN)
+    chat_data["mode"] = "get_file"
 
 
 def read_languages(bot, update):
@@ -190,11 +192,72 @@ def reply(bot, update, chat_data):
     if update.message.reply_to_message:
         if re.match(strings[lang]['add_cmd'].split("@")[0], update.message.reply_to_message.text):
             set_bot_name(update, lang, chat_data, db)
+    elif 'mode' in chat_data and chat_data['mode'] == "get_file":
+        analyse_str_msg(chat_data, update, bot)
     else:
         if update.message.text == strings[lang]['add_bot']:
             add_bot(update, lang)
         else:
             update.message.reply_text(update.message.text)
+
+
+def analyse_str_msg(chat_data, update, bot):
+    data = update.message.text
+    file_type = "json" if data[:1] == '[' or data[:1] == '{' else False
+    file_type = "yaml" if re.match('^.{1,32}:', data) else file_type
+    if bool(file_type):
+        msg = file_type.upper() + strings[chat_data['lang']]['add_text'] + ' ✅'
+        message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        file_name = str(update.message.from_user.id) + '.' + file_type
+        with open(os.path.join(os.path.dirname(__file__), './downloads/' + file_name), "w") as text_file:
+            text_file.write(data)
+        read_string_file(file_name, msg, message_id, bot, chat_data)
+    else:
+        update.message.reply_text(strings[chat_data['lang']]['add_err'])
+
+
+def read_json(file_name):
+    state = True
+    try:
+        with open(os.path.join(os.path.dirname(__file__), file_name), encoding="utf-8") as data_file:
+            data = json.load(data_file)
+    except json.decoder.JSONDecodeError:
+        try:
+            with open(os.path.join(os.path.dirname(__file__), file_name), encoding="utf-8-sig") as data_file:
+                data = json.load(data_file)
+        except json.decoder.JSONDecodeError as e:
+            data = None
+            state = str(e)
+    return data, state
+
+
+def read_string_file(file_name, msg, message_id, bot, chat_data):
+    state = True
+    data = None
+    file_type = file_name.split(".")[-1]
+    if file_type == "json":
+        data, state = read_json("downloads/" + file_name)
+    elif file_type == "yaml":
+        data, state = ReadYaml.get_yml("downloads/" + file_name)
+        state = re.sub('\"[^"]*\"', 'file', state) if not state is True else state
+    if not state is True:
+        msg = msg + "\n\n" + strings[chat_data['lang']]['error'] + " ☹️\n`" + state + "` "
+    else:
+        msg = msg + "\n\n" + file_type.upper() + strings[chat_data['lang']]['add_file'] + " ✅"
+    bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                          parse_mode=ParseMode.MARKDOWN)
+
+
+def handle_file(bot, update, chat_data):
+    file_type = update.message.document.file_name.split(".")[-1]
+    file_name = str(update.message.from_user.id) + "_" + update.message.document.file_name
+    if file_type in ["json", "yaml"]:
+        file_id = bot.getFile(update.message.document.file_id)
+        file_id.download(custom_path=os.path.join(os.path.dirname(__file__), "downloads/") + file_name)
+        msg = strings[chat_data['lang']]['add_receiv'].replace("@filename",
+                                                               "`" + update.message.document.file_name + "`")
+        message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        read_string_file(file_name, msg, message_id, bot, chat_data)
 
 
 def reply_button(bot, update, chat_data):
@@ -236,10 +299,10 @@ def error(bot, update, error):
 
 def main():
     global cfg
-    cfg = ReadYaml.get_yml('./config.yml')
+    cfg, state = ReadYaml.get_yml('./config.yml')
 
     global strings
-    strings = ReadYaml.get_yml('./strings.yml')
+    strings, state = ReadYaml.get_yml('./strings.yml')
 
     updater = Updater(cfg['bot']['token'])
 
@@ -248,6 +311,7 @@ def main():
     dp.add_handler(CommandHandler("readLanguages", read_languages))
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(MessageHandler(Filters.text, reply, pass_chat_data=True))
+    dp.add_handler(MessageHandler(Filters.document, handle_file, pass_chat_data=True))
     dp.add_handler(CallbackQueryHandler(reply_button, pass_chat_data=True))
     dp.add_error_handler(error)
 

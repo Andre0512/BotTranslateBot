@@ -12,6 +12,11 @@ de:
   add_lang: Fangen wir mit den Strings in @language an
   add_format: "Folgende Formate werden unterstützt:@examples"
   add_pos: Du kannst mir eine Datei im Format `.yml` bzw `.json` senden oder mir die Strings direkt als Nachricht senden
+  add_receiv: Datei @filename erhalten.
+  add_file: -Datei erfolgreich validiert
+  add_text: -Datei erkannt
+  add_err: Die Nachricht enthält kein unterstützes Datei-Format
+  error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
   cur_lang: "Aktuell unterstützte Sprachen:"
