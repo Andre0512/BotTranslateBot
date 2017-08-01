@@ -1,0 +1,18 @@
+de:
+  add_bot: Bot hinzufügen
+  add_cmd: "Bitte sende mir jetzt den Namen deines Bots.\nBeispiel: @example"
+  add_answ: Okay!\nWelche Sprachen werden momentan unterstützt?
+  add_hint: z.B. `de` oder `ge` für `Deutsch`
+  add_more: Füge eine weitere Sprache hinzu oder wähle *@done* aus
+  add_chos: Welche der folgenden Sprachen soll meintest du?
+  add_type: Sind alle Sprachen in einer Datei oder hast du für jede Sprache eine Datei?
+  add_mono: Alles in einer Datei
+  add_poli: Eine Datei je Sprache
+  add_ask: Okay, jetzt barauche ich deine Strings.
+  add_lang: Fangen wir mit den Strings in @language an
+  add_format: "Folgende Formate werden unterstützt:@examples"
+  add_pos: Du kannst mir eine Datei im Format `.yml` bzw `.json` senden oder mir die Strings direkt als Nachricht senden
+  done: Fertig
+  cancel: Abbrechen
+  cur_lang: "Aktuell unterstützte Sprachen:"
+  lang_nf: Sprache nicht gefunden!\nBitte versuche es nocheinmal
