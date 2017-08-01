@@ -1,6 +1,7 @@
 bot:
   token: <BOT-TOKEN>
   owner: <OWNER-ID>
+  name: <BOT-NAME>
 database:
   host: <DB-ADDRESS>
   database: <DB-NAME>

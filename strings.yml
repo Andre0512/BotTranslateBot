@@ -5,7 +5,7 @@ de:
   add_hint: z.B. `de` oder `ge` für `Deutsch`
   add_more: Füge eine weitere Sprache hinzu oder wähle *@done* aus
   add_chos: Welche der folgenden Sprachen soll meintest du?
-  add_type: Sind alle Sprachen in einer Datei oder hast du für jede Sprache eine Datei?
+  add_type: Sind alle Sprachen in einer Datei oder hast du für jede Sprache eine eigene Datei?
   add_mono: Alles in einer Datei
   add_poli: Eine Datei je Sprache
   add_ask: Okay, jetzt barauche ich deine Strings.
@@ -19,6 +19,9 @@ de:
   add_err: Die Nachricht enthält kein unterstützes Datei-Format
   add_strings: Strings erfolgreich eingelesen
   add_words: Übersetzungen für @lang erfoglreich eingelesen
+  add_success: Glückwunsch! Du hast deinen @botname mit erfolgreich hinzugefügt
+  link: Hier ist dein persönlicher Link
+  link_desc: Mit diesem Link kommen deine Nutzer direkt zur Übersetzung deines Bots
   error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
