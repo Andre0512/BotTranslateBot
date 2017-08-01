@@ -41,8 +41,29 @@ class Database:
         self.con.commit()
 
     def insert_translation(self, bot_name, lang_code):
-        self.cur.execute("INSERT INTO translations (bot_id, lang_code) " +
-                         "VALUES ((SELECT id FROM bots WHERE name=%s), %s);", (bot_name, lang_code))
+        pass
+        # self.cur.execute("INSERT INTO translations (bot_id, lang_code) " +
+        #                 "VALUES ((SELECT id FROM bots WHERE name=%s), %s);", (bot_name, lang_code))
+        # self.con.commit()
+
+    def __get_bot_id(self, bot_name):
+        self.cur.execute("SELECT id FROM bots WHERE name='" + bot_name + "'")
+        bot_id = [item[0] for item in self.cur.fetchall()][0]
+        return bot_id
+
+    def insert_strings(self, bot_name, str_list):
+        bot_id = self.__get_bot_id(bot_name)
+        for string in str_list:
+            self.cur.execute("INSERT INTO strings (bot_id, name) " +
+                             "VALUES (%s, %s);", (str(bot_id), string))
+        self.con.commit()
+
+    def insert_words(self, str_dict, lang, bot_name):
+        bot_id = self.__get_bot_id(bot_name)
+        for keys, values in str_dict.items():
+            self.cur.execute("INSERT INTO words (string_id, lang_code, value) " +
+                             "VALUES ((SELECT id FROM strings WHERE name=%s and bot_id=%s), %s, %s);",
+                             (keys, bot_id, lang, values))
         self.con.commit()
 
     def insert_languages(self, data):
@@ -79,9 +100,11 @@ def get_lang_keyboard(chat_data):
                 ['z', 'x', 'c', 'v', 'b', 'n', 'm']]
     keyboard = [[InlineKeyboardButton(col, callback_data='langkeyboard_' + col) for col in row] for row in keyboard]
     if 'bot_lang' in chat_data:
-        keyboard.append([InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['done'], callback_data='langchoosen')])
+        keyboard.append(
+            [InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['done'], callback_data='langchoosen')])
     else:
-        keyboard.append([InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')])
+        keyboard.append(
+            [InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -89,7 +112,8 @@ def get_adding_text(chat_data, add='', letter=None):
     msg = '🤖: @' + chat_data['bot_name'] + '\n🗣 ' + strings[chat_data['lang']]['cur_lang'] + '\n'
     if 'bot_lang' in chat_data:
         for language in chat_data['bot_lang']:
-            msg = msg + chat_data['bot_languages'][language][1] + ' (' + chat_data['bot_languages'][language][0] + ')\n'
+            msg = msg + chat_data['bot_languages'][language][1] + ' (' + chat_data['bot_languages'][language][
+                0] + ')\n'
     msg = msg + letter if letter else msg
     msg = msg + '\n\n' + add
     return msg
@@ -117,8 +141,9 @@ def send_lang_results(update, chat_data):
             get_adding_text(chat_data, add=msg, letter=chat_data['letter_one'] + chat_data['letter_two']),
             reply_markup=keyboard)
     else:
-        update.callback_query.message.edit_text(get_adding_text(chat_data, add=strings[chat_data['lang']]['lang_nf']),
-                                                reply_markup=get_lang_keyboard(chat_data))
+        update.callback_query.message.edit_text(
+            get_adding_text(chat_data, add=strings[chat_data['lang']]['lang_nf']),
+            reply_markup=get_lang_keyboard(chat_data))
 
 
 def add_language(chat_data, lang_code, update):
@@ -127,23 +152,27 @@ def add_language(chat_data, lang_code, update):
     db.insert_translation(chat_data["bot_name"], lang_code)
     msg = strings[chat_data['lang']]['add_more'].replace("@done", '✔️ ' + strings[chat_data['lang']]['done'])
     update.message.edit_text(
-        get_adding_text(chat_data, add=msg), reply_markup=get_lang_keyboard(chat_data), parse_mode=ParseMode.MARKDOWN)
+        get_adding_text(chat_data, add=msg), reply_markup=get_lang_keyboard(chat_data),
+        parse_mode=ParseMode.MARKDOWN)
 
 
-def ask_for_strings(format, update, chat_data):
+def ask_for_strings(form, update, chat_data):
+    chat_data['format'] = form
     add = strings[chat_data['lang']]['add_ask'] + '\n'
-    if format == "mono":
+    if form == "mono":
         eg_yaml = '```´\nen:\n  greeting: Hello\n  state: "How are you?"```'
         eg_json = '```\n{\n  "en":\n    {\n      "greeting": "Hello",\n      "state": "How are you?"\n    }\n}```'
     else:
         eg_yaml = '```\ngreeting: Hello\nstate: "How are you?"```'
         eg_json = '```\n{\n  "greeting": "Hello",\n  "state": "How are you?"\n}```'
-    add = add + strings[chat_data['lang']]['add_format'].replace("@examples", "\n*-YAML*\n@eg_yaml\n*-JSON*\n@eg_json")
+    add = add + strings[chat_data['lang']]['add_format'].replace("@examples",
+                                                                 "\n*-YAML*\n@eg_yaml\n*-JSON*\n@eg_json")
     add = add.replace("@eg_yaml", eg_yaml).replace("@eg_json", eg_json)
     add = add + '\n' + strings[chat_data['lang']]['add_pos']
-    if format == 'poli':
+    if form == 'poli':
         add = add + '\n\n' + strings[chat_data['lang']]['add_lang'].replace('@language', chat_data['bot_languages'][
-            chat_data['bot_lang'][0]][1] + ' (' + chat_data['bot_languages'][chat_data['bot_lang'][0]][0] + ')') + ' ⬇️'
+            chat_data['bot_lang'][0]][1] + ' (' + chat_data['bot_languages'][chat_data['bot_lang'][0]][
+                                                                                0] + ')') + ' ⬇️'
     update.callback_query.message.edit_text(get_adding_text(chat_data, add=add), parse_mode=ParseMode.MARKDOWN)
     chat_data["mode"] = "get_file"
 
@@ -209,8 +238,8 @@ def analyse_str_msg(chat_data, update, bot):
         msg = file_type.upper() + strings[chat_data['lang']]['add_text'] + ' ✅'
         message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
         file_name = str(update.message.from_user.id) + '.' + file_type
-        with open(os.path.join(os.path.dirname(__file__), './downloads/' + file_name), "w") as text_file:
-            text_file.write(data)
+        with open(os.path.join(os.path.dirname(__file__), './downloads/' + file_name), "wb") as text_file:
+            text_file.write(data.encode('utf-8'))
         read_string_file(file_name, msg, message_id, bot, chat_data)
     else:
         update.message.reply_text(strings[chat_data['lang']]['add_err'])
@@ -246,6 +275,18 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
         msg = msg + "\n\n" + file_type.upper() + strings[chat_data['lang']]['add_file'] + " ✅"
     bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                           parse_mode=ParseMode.MARKDOWN)
+    if not chat_data["format"] == "mono":
+        str_list = list(data.keys())
+        db = Database()
+        db.insert_strings(chat_data["bot_name"], str_list)
+        msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_strings'] + " ✅"
+        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                              parse_mode=ParseMode.MARKDOWN)
+        db.insert_words(data, chat_data["bot_lang"][0], chat_data["bot_name"])
+        msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_words'].replace("@lang", chat_data['bot_languages'][
+            chat_data['bot_lang'][0]][1] + ' (' +chat_data['bot_languages'][chat_data['bot_lang'][0]][0] + ')') + " ✅"
+        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                              parse_mode=ParseMode.MARKDOWN)
 
 
 def handle_file(bot, update, chat_data):
@@ -281,8 +322,10 @@ def reply_button(bot, update, chat_data):
         if len(chat_data["bot_lang"]) > 1:
             add = strings[chat_data['lang']]['add_type']
             keyboard = InlineKeyboardMarkup(
-                [[InlineKeyboardButton('☝️ ' + strings[chat_data['lang']]['add_mono'], callback_data='format_mono')],
-                 [InlineKeyboardButton('✋️ ' + strings[chat_data['lang']]['add_poli'], callback_data='format_poli')]])
+                [[InlineKeyboardButton('☝️ ' + strings[chat_data['lang']]['add_mono'],
+                                       callback_data='format_mono')],
+                 [InlineKeyboardButton('✋️ ' + strings[chat_data['lang']]['add_poli'],
+                                       callback_data='format_poli')]])
             update.callback_query.message.edit_text(get_adding_text(chat_data, add=add), reply_markup=keyboard)
         else:
             ask_for_strings('sinlge', update, chat_data)

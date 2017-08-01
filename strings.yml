@@ -16,6 +16,8 @@ de:
   add_file: -Datei erfolgreich validiert
   add_text: -Datei erkannt
   add_err: Die Nachricht enthält kein unterstützes Datei-Format
+  add_strings: Strings erfolgreich eingelesen
+  add_words: Übersetzungen für @lang erfoglreich eingelesen
   error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
