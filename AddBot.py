@@ -113,7 +113,14 @@ def add_bot(update, lang):
 def set_bot_name(update, lang, chat_data, db):
     bot_name = update.message.text[1:] if update.message.text[:1] == '@' else update.message.text
     if re.match('^[a-zA-Z0-9_-]{5,64}$', bot_name):
-        db.insert_bot(bot_name, update.message.from_user.id)
+        status = db.insert_bot(bot_name, update.message.from_user.id)
+        if not status:
+            link = 'https://t.me/' + cfg['bot']['name'] + '?start=' + bot_name
+            msg = strings[chat_data['lang']]['add_name_err2']
+            msg = msg.replace('@name', '@' + bot_name).replace('@link', link).replace('@owner',
+                                                                                      '@' + cfg['bot']['owner_name'])
+            update.message.reply_text(msg)
+            return
         chat_data['bot_name'] = bot_name
         update.message.reply_text(
             get_adding_text(chat_data, strings[lang]['add_answ'] + '\n' + strings[chat_data['lang']]['add_hint']),
@@ -137,7 +144,10 @@ def analyse_str_msg(chat_data, update, bot):
             text_file.write(data.encode('utf-8'))
         read_string_file(file_name, msg, message_id, bot, chat_data)
     else:
-        update.message.reply_text(strings[chat_data['lang']]['add_err'])
+        msg = strings[chat_data['lang']]['add_err'] + ' 😅' + '\n\n' + strings[chat_data['lang']]['add_again']
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')]])
+        update.message.reply_text(msg, reply_markup=keyboard)
 
 
 def read_json(file_name):
@@ -209,8 +219,15 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
         bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                               parse_mode=ParseMode.MARKDOWN)
         for key, value in data.items():
+            try:
+                language = chat_data['bot_languages'][key][1] + ' (' + chat_data['bot_languages'][key][0] + ')'
+            except KeyError:
+                msg = msg + '\n\n' + strings[chat_data['lang']]['add_val_err'].replace('@lang', '*' + key + '*') + ' ❌'
+                msg = msg + '\n\n' + strings[chat_data['lang']]['add_again']
+                bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                                      parse_mode=ParseMode.MARKDOWN)
+                return
             db.insert_words(value, key, chat_data["bot_name"])
-            language = chat_data['bot_languages'][key][1] + ' (' + chat_data['bot_languages'][key][0] + ')'
             msg = msg + '\n\n' + str(len(list(value.keys()))) + " " + strings[chat_data['lang']][
                 'add_words'].replace("@lang",
                                      language) + " ✅"

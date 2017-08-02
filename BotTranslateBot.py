@@ -41,8 +41,13 @@ class Database:
         self.con.commit()
 
     def insert_bot(self, bot_name, user_id):
-        self.cur.execute("INSERT INTO bots (name, owner_id) VALUES (%s, %s);", (bot_name, str(user_id)))
+        status = True
+        try:
+            self.cur.execute("INSERT INTO bots (name, owner_id) VALUES (%s, %s);", (bot_name, str(user_id)))
+        except mdb.err.IntegrityError:
+            status = False
         self.con.commit()
+        return status
 
     def __get_bot_id(self, bot_name):
         self.cur.execute("SELECT id FROM bots WHERE name='" + bot_name + "'")
@@ -52,8 +57,10 @@ class Database:
     def insert_strings(self, bot_name, str_list):
         bot_id = self.__get_bot_id(bot_name)
         for string in str_list:
-            self.cur.execute("INSERT INTO strings (bot_id, name) " +
-                             "VALUES (%s, %s);", (str(bot_id), string))
+            self.cur.execute("SELECT id FROM strings WHERE name=%s and bot_id=%s",(string, str(bot_id)))
+            length = len(self.cur.fetchall())
+            if length == 0:
+                self.cur.execute("INSERT INTO strings (bot_id, name) " + "VALUES (%s, %s);", (str(bot_id), string))
         self.con.commit()
 
     def insert_words(self, str_dict, lang, bot_name):
@@ -65,12 +72,15 @@ class Database:
         self.con.commit()
 
     def insert_languages(self, data):
-        query = "INSERT INTO languages (language_code, name, native_name) VALUES (%s, %s, %s)"
+        query_insert = "INSERT INTO languages (name, native_name, flag, language_code) VALUES (%s, %s, %s, %s)"
+        query_update = "UPDATE languages SET name=%s, native_name=%s, flag=%s WHERE language_code=%s"
         for lang in data:
+            flag = lang['flag'].encode('unicode-escape') if 'flag' in lang else ''
+            values = (lang['name'], lang['nativeName'].encode('unicode-escape'), flag, lang['code'])
             try:
-                self.cur.execute(query, (lang['code'], lang['name'], lang['nativeName'].encode('unicode-escape')))
-            except mdb.err.IntegrityError:  # Do nothing, if language exists
-                pass
+                self.cur.execute(query_insert, values)
+            except mdb.err.IntegrityError:
+                self.cur.execute(query_update, values)
         self.con.commit()
 
     def get_user_data(self, user_id):
@@ -80,9 +90,10 @@ class Database:
 
     def search_language(self, letter):
         self.cur.execute(
-            "SELECT CONCAT(name, ' ', flag), language_code, native_name FROM languages WHERE language_code LIKE '" + letter +
+            "SELECT name, flag, language_code, native_name FROM languages WHERE language_code LIKE '" + letter +
             "' OR name LIKE '" + letter + "%' OR native_name LIKE '" + letter + "%'")
-        result = {item[1]: [item[0].rstrip(' '), item[2].encode('utf-8').decode('unicode-escape')] for item in
+        result = {item[2]: [item[0] + ' ' + item[1].encode('utf-8').decode('unicode-escape') if item[1] else item[0],
+                            item[3].encode('utf-8').decode('unicode-escape')] for item in
                   self.cur.fetchall()}
         return result
 
@@ -107,8 +118,12 @@ def start(bot, update, chat_data):
     db.insert_user(update.message.from_user)
     lang = db.get_user_data(update.message.from_user.id)
     chat_data['lang'] = lang
-    update.message.reply_text('Hi!', reply_markup=ReplyKeyboardMarkup([[
-        strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+    if update.message.text.split(" ")[-1] == "/start":
+        update.message.reply_text('Hi!', reply_markup=ReplyKeyboardMarkup([[
+            strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+    else:
+        update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
+            strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
 
 
 def help(bot, update):

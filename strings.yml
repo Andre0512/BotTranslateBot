@@ -21,9 +21,11 @@ de:
   add_words: Übersetzungen für @lang erfolgreich eingelesen
   add_success: Glückwunsch! Du hast deinen @botname erfolgreich hinzugefügt
   add_name_err: Bot Name ungültig!
+  add_name_err2: Das hat nicht geklappt!\nVermutlich ist @name bereits hinzugefügt wurden!\n\nTeste es mit @link\n\nWenn dein Bot unrechtmäßig von Dritten hinzugefügt wurde, bitte an @owner wenden
+  add_val_err: "@lang ist kein gültiger Sprachcode!"
   add_again: Versuche es nocheinmal...
   link: Hier ist dein persönlicher Link
-  link_desc: Mit diesem Link kommen deine Nutzer direkt zur Übersetzung deines Bots
+  link_desc: Über diesen Link kann direkt mit der Übersetzung deines Bots gestartet werden
   error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
