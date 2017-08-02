@@ -8,7 +8,6 @@ import logging
 import pymysql as mdb
 import ReadYaml
 import json
-import os
 import AddBot
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -35,6 +34,10 @@ class Database:
             self.cur.execute(insert_query, values)
         except mdb.err.IntegrityError:  # Update user, if exists
             self.cur.execute(update_query, values)
+        self.con.commit()
+
+    def delete_bot(self, bot_name):
+        self.cur.execute("DELETE FROM bots WHERE name=%s;", (bot_name))
         self.con.commit()
 
     def insert_bot(self, bot_name, user_id):
@@ -116,7 +119,8 @@ def reply(bot, update, chat_data):
     db = Database(cfg)
     lang = db.get_user_data(update.message.from_user.id)
     if update.message.reply_to_message:
-        if re.match(strings[lang]['add_cmd'].split("@")[0], update.message.reply_to_message.text):
+        if re.match(strings[lang]['add_cmd'].split("@")[0], update.message.reply_to_message.text) \
+                or re.match(strings[chat_data['lang']]['add_name_err'], update.message.reply_to_message.text):
             AddBot.set_bot_name(update, lang, chat_data, db)
     elif 'mode' in chat_data and chat_data['mode'] == "get_file":
         AddBot.analyse_str_msg(chat_data, update, bot)
@@ -135,7 +139,7 @@ def reply_button(bot, update, chat_data):
     update.callback_query.answer()
     arg_list = update.callback_query.data.split("_")
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
-    if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format']:
+    if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
 
 

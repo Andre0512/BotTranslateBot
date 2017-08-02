@@ -1,6 +1,6 @@
 de:
   add_bot: Bot hinzufügen
-  add_cmd: "Bitte sende mir jetzt den Namen deines Bots.\nBeispiel: @example"
+  add_cmd: "Bitte sende mir jetzt den Namen deines Bots ☺️\nBeispiel: @example"
   add_answ: Okay!\nWelche Sprachen werden momentan unterstützt?
   add_hint: z.B. `de` oder `ge` für `Deutsch`
   add_more: Füge eine weitere Sprache hinzu oder wähle *@done* aus
@@ -8,7 +8,7 @@ de:
   add_type: Sind alle Sprachen in einer Datei oder hast du für jede Sprache eine eigene Datei?
   add_mono: Alles in einer Datei
   add_poli: Eine Datei je Sprache
-  add_ask: Okay, jetzt barauche ich deine Strings.
+  add_ask: Okay, jetzt benötige ich deine Strings
   add_lang: Fangen wir mit den Strings in @language an
   add_lango: Sende mir als nächstes die Strings in @language
   add_format: "Folgende Formate werden unterstützt:@examples"
@@ -18,12 +18,15 @@ de:
   add_text: -Datei erkannt
   add_err: Die Nachricht enthält kein unterstützes Datei-Format
   add_strings: Strings erfolgreich eingelesen
-  add_words: Übersetzungen für @lang erfoglreich eingelesen
-  add_success: Glückwunsch! Du hast deinen @botname mit erfolgreich hinzugefügt
+  add_words: Übersetzungen für @lang erfolgreich eingelesen
+  add_success: Glückwunsch! Du hast deinen @botname erfolgreich hinzugefügt
+  add_name_err: Bot Name ungültig!
+  add_again: Versuche es nocheinmal...
   link: Hier ist dein persönlicher Link
   link_desc: Mit diesem Link kommen deine Nutzer direkt zur Übersetzung deines Bots
   error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
+  cancel_msg: Vorgang wurde abgebrochen
   cur_lang: "Aktuell unterstützte Sprachen:"
   lang_nf: Sprache nicht gefunden!\nBitte versuche es nocheinmal

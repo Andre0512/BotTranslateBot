@@ -2,11 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import re
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 from telegram import ReplyKeyboardMarkup, ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
-import logging
 from BotTranslateBot import Database
-import pymysql as mdb
 import ReadYaml
 import json
 import os
@@ -16,12 +13,13 @@ def get_lang_keyboard(chat_data):
     keyboard = [['qw', 'e', 'r', 't', 'y', 'u', 'i', 'op'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'kl'],
                 ['z', 'x', 'c', 'v', 'b', 'n', 'm']]
     keyboard = [[InlineKeyboardButton(col, callback_data='langkeyboard_' + col) for col in row] for row in keyboard]
-    if 'bot_lang' in chat_data:
-        keyboard.append(
-            [InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['done'], callback_data='langchoosen')])
-    else:
-        keyboard.append(
-            [InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')])
+    last = []
+    if 'bot_lang' in chat_data and chat_data['bot_lang']:
+        last = last + [InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['done'], callback_data='langchoosen'),
+                       InlineKeyboardButton('❌ ' + chat_data['bot_lang'][-1],
+                                            callback_data='langdelete_' + chat_data['bot_lang'][-1])]
+    last = last + [InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')]
+    keyboard.append(last)
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -74,7 +72,7 @@ def add_language(chat_data, lang_code, update):
 
 def ask_for_strings(form, update, chat_data):
     chat_data['format'] = form
-    add = strings[chat_data['lang']]['add_ask'] + '\n'
+    add = strings[chat_data['lang']]['add_ask'] + ' 😏\n'
     if form == "mono":
         eg_yaml = '```´\nen:\n  greeting: Hello\n  state: "How are you?"```'
         eg_json = '```\n{\n  "en":\n    {\n      "greeting": "Hello",\n      "state": "How are you?"\n    }\n}```'
@@ -84,7 +82,7 @@ def ask_for_strings(form, update, chat_data):
     add = add + strings[chat_data['lang']]['add_format'].replace("@examples",
                                                                  "\n*-YAML*\n@eg_yaml\n*-JSON*\n@eg_json")
     add = add.replace("@eg_yaml", eg_yaml).replace("@eg_json", eg_json)
-    add = add + '\n' + strings[chat_data['lang']]['add_pos']
+    add = add + '\n' + strings[chat_data['lang']]['add_pos'] + ' ☺️'
     if form == 'poli':
         add = add + '\n\n' + strings[chat_data['lang']]['add_lang'].replace('@language', chat_data['bot_languages'][
             chat_data['bot_lang'][0]][1] + ' (' + chat_data['bot_languages'][chat_data['bot_lang'][0]][
@@ -92,6 +90,7 @@ def ask_for_strings(form, update, chat_data):
         chat_data['lang_read'] = 0
     update.callback_query.message.edit_text(get_adding_text(chat_data, add=add), parse_mode=ParseMode.MARKDOWN)
     chat_data["mode"] = "get_file"
+
 
 def handle_file(bot, update, chat_data):
     file_type = update.message.document.file_name.split(".")[-1]
@@ -105,7 +104,6 @@ def handle_file(bot, update, chat_data):
         read_string_file(file_name, msg, message_id, bot, chat_data)
 
 
-
 def add_bot(update, lang):
     msg = strings[lang]['add_cmd']
     msg = msg.replace('@example', '`AgeCalculatorBot`')
@@ -114,12 +112,17 @@ def add_bot(update, lang):
 
 def set_bot_name(update, lang, chat_data, db):
     bot_name = update.message.text[1:] if update.message.text[:1] == '@' else update.message.text
-    db.insert_bot(bot_name, update.message.from_user.id)
-    chat_data['bot_name'] = bot_name
-    update.message.reply_text(
-        get_adding_text(chat_data, strings[lang]['add_answ'] + '\n' + strings[chat_data['lang']]['add_hint']),
-        reply_markup=get_lang_keyboard(chat_data),
-        parse_mode=ParseMode.MARKDOWN)
+    if re.match('^[a-zA-Z0-9_-]{5,64}$', bot_name):
+        db.insert_bot(bot_name, update.message.from_user.id)
+        chat_data['bot_name'] = bot_name
+        update.message.reply_text(
+            get_adding_text(chat_data, strings[lang]['add_answ'] + '\n' + strings[chat_data['lang']]['add_hint']),
+            reply_markup=get_lang_keyboard(chat_data),
+            parse_mode=ParseMode.MARKDOWN)
+    else:
+        update.message.reply_text(
+            strings[chat_data['lang']]['add_name_err'] + '\n' + strings[chat_data['lang']]['add_again'] + ' 😬',
+            reply_markup=ForceReply())
 
 
 def analyse_str_msg(chat_data, update, bot):
@@ -162,11 +165,17 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
         data, state = ReadYaml.get_yml("downloads/" + file_name)
         state = re.sub('\"[^"]*\"', 'file', state) if not state is True else state
     if not state is True:
-        msg = msg + "\n\n" + strings[chat_data['lang']]['error'] + " ☹️\n`" + state + "` "
+        msg = msg + "\n\n" + strings[chat_data['lang']]['error'] + " ☹️\n`" + state + "` " + '\n\n' + \
+              strings[chat_data['lang']]['add_again']
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')]])
+        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                              reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+        return
     else:
         msg = msg + "\n\n" + file_type.upper() + strings[chat_data['lang']]['add_file'] + " ✅"
-    bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
-                          parse_mode=ParseMode.MARKDOWN)
+        bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
+                              parse_mode=ParseMode.MARKDOWN)
     bot_lang = 0 if not 'lang_read' in chat_data else chat_data['lang_read']
     if not chat_data["format"] == "mono":
         str_list = list(data.keys())
@@ -207,12 +216,18 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
                                      language) + " ✅"
             bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                                   parse_mode=ParseMode.MARKDOWN)
-    link = 'https://t.me/' + cfg['bot']['name'] + '/start?' + chat_data['bot_name']
+    link = 'https://t.me/' + cfg['bot']['name'] + '?start=' + chat_data['bot_name']
     msg = msg + '\n\n' + strings[chat_data['lang']]['add_success'].replace("@botname", '@' + chat_data['bot_name']) \
           + " 😃🎉\n\n" + strings[chat_data['lang']]['link'] + '\n' + link + '\n' + strings[chat_data['lang']][
               'link_desc'] + ' ☺️'
     bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                           parse_mode=ParseMode.MARKDOWN)
+    delete_adding_values(chat_data)
+
+
+def delete_adding_values(chat_data):
+    chat_data.pop("letter_one", None)
+    chat_data.pop("letter_two", None)
     chat_data.pop("bot_lang", None)
     chat_data.pop("bot_name", None)
     chat_data.pop("bot_languages", None)
@@ -247,6 +262,22 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
             ask_for_strings('sinlge', update, chat_data)
     if arg_one == 'format':
         ask_for_strings(arg_two, update, chat_data)
+    if arg_one == 'exitadding':
+        update.callback_query.message.edit_text(strings[chat_data['lang']]['cancel_msg'] + ' ❌')
+        cancel_adding(chat_data)
+    if arg_one == 'langdelete':
+        chat_data.pop("letter_one", None)
+        chat_data.pop("letter_two", None)
+        chat_data['bot_lang'] = chat_data['bot_lang'][:-1]
+        update.callback_query.message.edit_text(
+            get_adding_text(chat_data, add=strings[chat_data['lang']]['add_answ']),
+            reply_markup=get_lang_keyboard(chat_data))
+
+
+def cancel_adding(chat_data):
+    db = Database(cfg)
+    db.delete_bot(chat_data['bot_name'])
+    delete_adding_values(chat_data)
 
 
 def set_gloabl(config, all_strings):
