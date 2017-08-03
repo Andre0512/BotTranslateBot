@@ -29,6 +29,16 @@ de:
   error: Das hat nicht funktioniert
   done: Fertig
   cancel: Abbrechen
+  agree: "Ja"
+  reject: "Nein"
   cancel_msg: Vorgang wurde abgebrochen
   cur_lang: "Aktuell unterstützte Sprachen:"
   lang_nf: Sprache nicht gefunden!\nBitte versuche es nocheinmal
+  my_profile: Mein Profil
+  langs: Sprachen
+  trans: Übersetzungen
+  tr_greeting: Hallo @name\nDieser Bot hilft dabei, @bot_name in andere Sprachen zu übersetzen
+  tr_lang: Ich konnte ermitteln das deine Sprache @lang ist
+  tr_lang_f: Soll ich weiterhin mit dir auf @lang reden?
+  tr_lang_no: Nein, andere
+  tr_ask_lang:

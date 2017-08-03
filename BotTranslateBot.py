@@ -57,7 +57,7 @@ class Database:
     def insert_strings(self, bot_name, str_list):
         bot_id = self.__get_bot_id(bot_name)
         for string in str_list:
-            self.cur.execute("SELECT id FROM strings WHERE name=%s and bot_id=%s",(string, str(bot_id)))
+            self.cur.execute("SELECT id FROM strings WHERE name=%s and bot_id=%s", (string, str(bot_id)))
             length = len(self.cur.fetchall())
             if length == 0:
                 self.cur.execute("INSERT INTO strings (bot_id, name) " + "VALUES (%s, %s);", (str(bot_id), string))
@@ -97,11 +97,32 @@ class Database:
                   self.cur.fetchall()}
         return result
 
+    def get_language(self, lang_code):
+        self.cur.execute("SELECT native_name, flag FROM languages WHERE language_code=%s", (lang_code,))
+        lang, flag = self.cur.fetchall()[:][0]
+        return lang.encode('utf-8').decode('unicode-escape'), flag.encode('utf-8').decode(
+            'unicode-escape') if flag else None
+
+    def get_bot_number(self, user_id):
+        query = """SELECT COUNT(name), SUM(string), SUM(lang), SUM(value) FROM ( SELECT b.name, COUNT(DISTINCT s.name) 
+        AS string, COUNT(DISTINCT w.lang_code) as lang, COUNT(w.value) as value FROM bots b INNER JOIN strings s ON 
+        b.id=s.bot_id INNER JOIN words w ON s.id=w.string_id WHERE b.owner_id=%s GROUP BY b.id ) dat"""
+        self.cur.execute(query, (str(user_id),))
+        result = self.cur.fetchall()[0]
+        return result
+
     def rollback(self):
         self.con.rollback()
 
     def __del__(self):
         self.con.close()
+
+
+def get_std_keyboard(chat_data):
+    keyboard = ReplyKeyboardMarkup(
+        [['➕ ' + strings[chat_data['lang']]['add_bot'], '👤 ' + strings[chat_data['lang']]['my_profile']]],
+        resize_keyboard=True)
+    return keyboard
 
 
 def read_languages(bot, update):
@@ -118,12 +139,35 @@ def start(bot, update, chat_data):
     db.insert_user(update.message.from_user)
     lang = db.get_user_data(update.message.from_user.id)
     chat_data['lang'] = lang
+    if not lang in strings:
+        chat_data['lang'] = 'en'
+        chat_data['orginal_lang'] = lang
     if update.message.text.split(" ")[-1] == "/start":
-        update.message.reply_text('Hi!', reply_markup=ReplyKeyboardMarkup([[
-            strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+        update.message.reply_text('Hi!', reply_markup=get_std_keyboard(chat_data))
     else:
-        update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
-            strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+        start_translate(update, chat_data)
+        # update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
+        #     strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+
+
+def start_translate(update, chat_data):
+    chat_data['orginal_lang'] = 'uk'
+    db = Database(cfg)
+    language, flag = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
+    msg = strings[chat_data['lang']]['tr_greeting'].replace('@name', update.message.from_user.first_name + ' ✌️')
+    msg = msg.replace('@bot_name', '@' + update.message.text.split(" ")[-1])
+    msg = msg + ' 🌏\n\n' + strings[chat_data['lang']]['tr_lang'].replace('@lang', language) + ' ☺️\n'
+    yes = '✔️ ' + strings[chat_data['lang']]['agree'] + ' ' + (flag if flag else '')
+    no = '❌ ' + strings[chat_data['lang']]['tr_lang_no'] + ' 🗺'
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(yes, callback_data='langyes'), InlineKeyboardButton(no, callback_data='langno')]])
+    if 'orginal_lang' in chat_data:
+        chat_data.pop("orginal_lang", None)
+        msg = msg + '\nUnfortunately nobody has translated me into ' + language + \
+              ' 😕\nIs it okay when I speak to you in English?'
+    else:
+        msg = msg + strings[chat_data['lang']]['tr_lang_f'].replace('@lang', language)
+    update.message.reply_text(msg, reply_markup=keyboard)
 
 
 def help(bot, update):
@@ -140,10 +184,26 @@ def reply(bot, update, chat_data):
     elif 'mode' in chat_data and chat_data['mode'] == "get_file":
         AddBot.analyse_str_msg(chat_data, update, bot)
     else:
-        if update.message.text == strings[lang]['add_bot']:
+        if update.message.text == '➕ ' + strings[lang]['add_bot']:
             AddBot.add_bot(update, lang)
+        elif update.message.text == '👤 ' + strings[chat_data['lang']]['my_profile']:
+            my_profile(update, chat_data)
         else:
-            update.message.reply_text(update.message.text)
+            update.message.reply_text(update.message.text, reply_markup=get_std_keyboard(chat_data))
+
+
+def get_profile_text(chat_data):
+    return '🤖 *' + str(chat_data['bot_count']) + '* Bots\n🌎 *' + str(chat_data['lang_count']) + '* ' + \
+           strings[chat_data['lang']]['langs'] + '\n🗨 *' + str(chat_data['str_count']) + '* Strings\n   🗣 *' + str(
+        chat_data['val_count']) + '* ' + strings[chat_data['lang']]['trans']
+
+
+def my_profile(update, chat_data):
+    db = Database(cfg)
+    chat_data['bot_count'], chat_data['str_count'], chat_data['lang_count'], chat_data['val_count'] = db.get_bot_number(
+        update.message.from_user.id)
+    get_profile_text(chat_data)
+    update.message.reply_text(get_profile_text(chat_data), parse_mode=ParseMode.MARKDOWN)
 
 
 def handle_file(bot, update, chat_data):
