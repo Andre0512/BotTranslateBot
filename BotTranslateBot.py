@@ -32,8 +32,15 @@ class Database:
                   user.last_name if user.last_name else '', user.username if user.username else '', str(user.id))
         try:
             self.cur.execute(insert_query, values)
+            state = True
         except mdb.err.IntegrityError:  # Update user, if exists
             self.cur.execute(update_query, values)
+            state = False
+        self.con.commit()
+        return state
+
+    def update_language(self, user_id, lang_code):
+        self.cur.execute("UPDATE users SET lang_code=%s WHERE id=%s", (lang_code, user_id))
         self.con.commit()
 
     def delete_bot(self, bot_name):
@@ -136,7 +143,7 @@ def read_languages(bot, update):
 
 def start(bot, update, chat_data):
     db = Database(cfg)
-    db.insert_user(update.message.from_user)
+    state = db.insert_user(update.message.from_user)
     lang = db.get_user_data(update.message.from_user.id)
     chat_data['lang'] = lang
     if not lang in strings:
@@ -145,28 +152,29 @@ def start(bot, update, chat_data):
     if update.message.text.split(" ")[-1] == "/start":
         update.message.reply_text('Hi!', reply_markup=get_std_keyboard(chat_data))
     else:
-        start_translate(update, chat_data)
+        chat_data['bot'] = update.message.text.split(" ")[-1]
+        if state:
+            start_translate(update, chat_data)
         # update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
         #     strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
 
 
 def start_translate(update, chat_data):
-    chat_data['orginal_lang'] = 'uk'
+    # chat_data['orginal_lang'] = 'uk'
     db = Database(cfg)
     language, flag = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
     msg = strings[chat_data['lang']]['tr_greeting'].replace('@name', update.message.from_user.first_name + ' ✌️')
-    msg = msg.replace('@bot_name', '@' + update.message.text.split(" ")[-1])
+    msg = msg.replace('@bot_name', '@' + chat_data['bot'])
     msg = msg + ' 🌏\n\n' + strings[chat_data['lang']]['tr_lang'].replace('@lang', language) + ' ☺️\n'
     yes = '✔️ ' + strings[chat_data['lang']]['agree'] + ' ' + (flag if flag else '')
     no = '❌ ' + strings[chat_data['lang']]['tr_lang_no'] + ' 🗺'
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(yes, callback_data='langyes'), InlineKeyboardButton(no, callback_data='langno')]])
     if 'orginal_lang' in chat_data:
-        chat_data.pop("orginal_lang", None)
         msg = msg + '\nUnfortunately nobody has translated me into ' + language + \
               ' 😕\nIs it okay when I speak to you in English?'
     else:
-        msg = msg + strings[chat_data['lang']]['tr_lang_f'].replace('@lang', language)
+        msg = msg + strings[chat_data['lang']]['tr_lang_fnd'].replace('@lang', language)
     update.message.reply_text(msg, reply_markup=keyboard)
 
 
@@ -216,6 +224,27 @@ def reply_button(bot, update, chat_data):
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
+    elif arg_one == 'langyes':
+        pass
+    elif arg_one == 'langno':
+        db = Database(cfg)
+        msg = strings[chat_data['lang']]['ok'] + '! 😬\n' + strings[chat_data['lang']]['tr_lang_cho'] + ' ⬇️'
+        if 'orginal_lang' in chat_data:
+            msg = msg + "\n\nIf you want to help translate this bot into " + db.get_language(chat_data["orginal_lang"])[
+                0] + ", follow [this link](" + 'https://t.me/' + cfg['bot']['name'] + '?start=' + cfg['bot'][
+                      'name'] + ') ☺️'
+            chat_data.pop("orginal_lang", None)
+        languages = []
+        for lang in list(strings):
+            language, flag = db.get_language(lang)
+            languages.append([language + ' ' + flag if flag else language, lang])
+        keyboard = [InlineKeyboardButton(lang[0], callback_data='langcho_' + lang[1]) for lang in languages]
+        keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
+        update.callback_query.message.edit_text(msg, reply_markup=InlineKeyboardMarkup(keyboard),
+                                                parse_mode=ParseMode.MARKDOWN)
+    elif arg_one == 'langcho':
+        db = Database(cfg)
+        db.update_language(update.callback_query.message.chat.id, arg_two)
 
 
 def error(bot, update, error):

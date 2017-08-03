@@ -31,6 +31,7 @@ de:
   cancel: Abbrechen
   agree: "Ja"
   reject: "Nein"
+  ok: Okay
   cancel_msg: Vorgang wurde abgebrochen
   cur_lang: "Aktuell unterstützte Sprachen:"
   lang_nf: Sprache nicht gefunden!\nBitte versuche es nocheinmal
@@ -39,6 +40,6 @@ de:
   trans: Übersetzungen
   tr_greeting: Hallo @name\nDieser Bot hilft dabei, @bot_name in andere Sprachen zu übersetzen
   tr_lang: Ich konnte ermitteln das deine Sprache @lang ist
-  tr_lang_f: Soll ich weiterhin mit dir auf @lang reden?
+  tr_lang_fnd: Soll ich weiterhin mit dir auf @lang reden?
   tr_lang_no: Nein, andere
-  tr_ask_lang:
+  tr_lang_cho: Du kannst aktuell zwischen folgenden Sprachen wählen
