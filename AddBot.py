@@ -101,7 +101,7 @@ def handle_file(bot, update, chat_data):
         msg = strings[chat_data['lang']]['add_receiv'].replace("@filename",
                                                                "`" + update.message.document.file_name + "`")
         message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
-        read_string_file(file_name, msg, message_id, bot, chat_data)
+        read_string_file(file_name, msg, message_id, bot, chat_data, update.message.from_user.id)
 
 
 def add_bot(update, lang):
@@ -142,7 +142,7 @@ def analyse_str_msg(chat_data, update, bot):
         file_name = str(update.message.from_user.id) + '.' + file_type
         with open(os.path.join(os.path.dirname(__file__), './downloads/' + file_name), "wb") as text_file:
             text_file.write(data.encode('utf-8'))
-        read_string_file(file_name, msg, message_id, bot, chat_data)
+        read_string_file(file_name, msg, message_id, bot, chat_data, update.message.from_user.id)
     else:
         msg = strings[chat_data['lang']]['add_err'] + ' 😅' + '\n\n' + strings[chat_data['lang']]['add_again']
         keyboard = InlineKeyboardMarkup(
@@ -165,7 +165,7 @@ def read_json(file_name):
     return data, state
 
 
-def read_string_file(file_name, msg, message_id, bot, chat_data):
+def read_string_file(file_name, msg, message_id, bot, chat_data, user_id):
     state = True
     data = None
     file_type = file_name.split(".")[-1]
@@ -195,7 +195,7 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
             msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_strings'] + " ✅"
             bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                                   parse_mode=ParseMode.MARKDOWN)
-        db.insert_words(data, chat_data["bot_lang"][bot_lang], chat_data["bot_name"])
+        db.insert_words(data, chat_data["bot_lang"][bot_lang], chat_data["bot_name"], user_id)
         language = chat_data['bot_languages'][chat_data['bot_lang'][bot_lang]][1] + ' (' + \
                    chat_data['bot_languages'][chat_data['bot_lang'][bot_lang]][0] + ')'
         msg = msg + '\n\n' + str(len(str_list)) + " " + strings[chat_data['lang']]['add_words'].replace("@lang",
@@ -227,7 +227,7 @@ def read_string_file(file_name, msg, message_id, bot, chat_data):
                 bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                                       parse_mode=ParseMode.MARKDOWN)
                 return
-            db.insert_words(value, key, chat_data["bot_name"])
+            db.insert_words(value, key, chat_data["bot_name"], user_id)
             msg = msg + '\n\n' + str(len(list(value.keys()))) + " " + strings[chat_data['lang']][
                 'add_words'].replace("@lang",
                                      language) + " ✅"
@@ -267,6 +267,8 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
     if arg_one == 'language':
         add_language(chat_data, arg_two, update.callback_query)
     if arg_one == 'langchoosen':
+        db = Database(cfg)
+        db.insert_bot_language(chat_data['bot_name'], chat_data['bot_lang'])
         if len(chat_data["bot_lang"]) > 1:
             add = strings[chat_data['lang']]['add_type']
             keyboard = InlineKeyboardMarkup(

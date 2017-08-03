@@ -31,6 +31,9 @@ de:
   cancel: Abbrechen
   agree: "Ja"
   reject: "Nein"
+  transl: Übersetzung
+  from: Von
+  to: Nach
   ok: Okay
   cancel_msg: Vorgang wurde abgebrochen
   cur_lang: "Aktuell unterstützte Sprachen:"
@@ -43,3 +46,4 @@ de:
   tr_lang_fnd: Soll ich weiterhin mit dir auf @lang reden?
   tr_lang_no: Nein, andere
   tr_lang_cho: Du kannst aktuell zwischen folgenden Sprachen wählen
+  tr_from: Aus welcher Sprache willst du übersetzen?\nDer Bot ist aktuell in folgenden Sprachen verfügbar

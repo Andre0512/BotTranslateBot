@@ -70,12 +70,18 @@ class Database:
                 self.cur.execute("INSERT INTO strings (bot_id, name) " + "VALUES (%s, %s);", (str(bot_id), string))
         self.con.commit()
 
-    def insert_words(self, str_dict, lang, bot_name):
+    def insert_bot_language(self, bot_name, lang_list):
         bot_id = self.__get_bot_id(bot_name)
-        for keys, values in str_dict.items():
-            self.cur.execute("INSERT INTO words (string_id, lang_code, value) " +
-                             "VALUES ((SELECT id FROM strings WHERE name=%s and bot_id=%s), %s, %s);",
-                             (keys, bot_id, lang, values))
+        for lang in lang_list:
+            self.cur.execute("INSERT INTO translations (bot_id, lang_code, state) VALUES (%s, %s,  0);", (bot_id, lang))
+        self.con.commit()
+
+    def insert_words(self, str_dict, lang, bot_name, user_id):
+        bot_id = self.__get_bot_id(bot_name)
+        for key, value in str_dict.items():
+            self.cur.execute("INSERT INTO words (translation_id, value, creator_id, string_id) " +
+                             "VALUES ((SELECT MAX(id) FROM translations), %s, %s, (SELECT id FROM strings WHERE name=%s"
+                             + " AND bot_id=%s))", (value, user_id, key, bot_id))
         self.con.commit()
 
     def insert_languages(self, data):
@@ -95,6 +101,12 @@ class Database:
         language = [item[0] for item in self.cur.fetchall()][0]
         return language
 
+    def get_languages(self, bot_name):
+        self.cur.execute("SELECT lang_code FROM translations t INNER JOIN bots b ON t.bot_id=b.id WHERE b.name=%s",
+                         (bot_name,))
+        result = [lang[0] for lang in self.cur.fetchall()]
+        return result
+
     def search_language(self, letter):
         self.cur.execute(
             "SELECT name, flag, language_code, native_name FROM languages WHERE language_code LIKE '" + letter +
@@ -105,15 +117,16 @@ class Database:
         return result
 
     def get_language(self, lang_code):
-        self.cur.execute("SELECT native_name, flag FROM languages WHERE language_code=%s", (lang_code,))
-        lang, flag = self.cur.fetchall()[:][0]
-        return lang.encode('utf-8').decode('unicode-escape'), flag.encode('utf-8').decode(
-            'unicode-escape') if flag else None
+        self.cur.execute("SELECT native_name, flag, name FROM languages WHERE language_code=%s", (lang_code,))
+        lang_native, flag, lang = self.cur.fetchall()[:][0]
+        return [lang_native.encode('utf-8').decode('unicode-escape'), flag.encode('utf-8').decode(
+            'unicode-escape') if flag else None, lang]
 
     def get_bot_number(self, user_id):
         query = """SELECT COUNT(name), SUM(string), SUM(lang), SUM(value) FROM ( SELECT b.name, COUNT(DISTINCT s.name) 
-        AS string, COUNT(DISTINCT w.lang_code) as lang, COUNT(w.value) as value FROM bots b INNER JOIN strings s ON 
-        b.id=s.bot_id INNER JOIN words w ON s.id=w.string_id WHERE b.owner_id=%s GROUP BY b.id ) dat"""
+        AS string, COUNT(DISTINCT t.lang_code) as lang, COUNT(w.value) as value FROM bots b INNER JOIN strings s ON 
+        b.id=s.bot_id INNER JOIN translations t ON b.id=t.bot_id INNER JOIN words w ON s.id=w.string_id WHERE 
+        b.owner_id=%s GROUP BY b.id ) AS results"""
         self.cur.execute(query, (str(user_id),))
         result = self.cur.fetchall()[0]
         return result
@@ -154,15 +167,49 @@ def start(bot, update, chat_data):
     else:
         chat_data['bot'] = update.message.text.split(" ")[-1]
         if state:
-            start_translate(update, chat_data)
-        # update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
-        #     strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
+            start_translate_new(update, chat_data)
+        else:
+            start_translation(update, chat_data)
+            # update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
+            #     strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
 
 
-def start_translate(update, chat_data):
+def get_start_text(chat_data, add=None):
+    msg = '@' + chat_data['bot'] + ' ' + strings[chat_data['lang']]['transl'] + " 🤖\n"
+    msg = msg + strings[chat_data['lang']]['from'] + ': ' + (chat_data[
+                                                                 'lang_from'] if 'lang_from' in chat_data else '') + '\n'
+    msg = msg + strings[chat_data['lang']]['to'] + ': ' + (
+        chat_data['lang_to'] if 'lang_to' in chat_data else ' ') + '\n'
+    msg = msg + '\n\n' + add if add else msg
+    return msg
+
+
+def start_translation(update, chat_data, edit=False):
+    db = Database(cfg)
+    lang_list = db.get_languages(chat_data['bot'])
+    lang_list = [db.get_language(language) + [language] for language in lang_list]
+    lang_list = [[language[2] + ' ' + language[1] if language[1] else language[2], language[3]] for language in
+                 lang_list]
+    keyboard = get_tworow_keyboard(lang_list, 'fromlang_')
+    msg = strings[chat_data['lang']]['tr_from'] + ' ⬇️'
+    if edit:
+        update.message.edit_text(get_start_text(chat_data, add=msg), reply_markup=keyboard)
+    else:
+        update.message.reply_text(get_start_text(chat_data, add=msg), reply_markup=keyboard)
+
+
+def choose_lang_to(update, chat_data):
+    db = Database(cfg)
+    from_lang = db.get_language(chat_data['flang'])
+    chat_data['lang_from'] = from_lang[0] + ' ' + from_lang[1] if from_lang[1] else from_lang[0]
+    keyboard = AddBot.get_lang_keyboard(chat_data)
+    update.callback_query.message.edit_text(get_start_text(chat_data), reply_markup=keyboard)
+
+
+def start_translate_new(update, chat_data):
     # chat_data['orginal_lang'] = 'uk'
     db = Database(cfg)
-    language, flag = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
+    language, flag, x = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
     msg = strings[chat_data['lang']]['tr_greeting'].replace('@name', update.message.from_user.first_name + ' ✌️')
     msg = msg.replace('@bot_name', '@' + chat_data['bot'])
     msg = msg + ' 🌏\n\n' + strings[chat_data['lang']]['tr_lang'].replace('@lang', language) + ' ☺️\n'
@@ -202,7 +249,7 @@ def reply(bot, update, chat_data):
 
 def get_profile_text(chat_data):
     return '🤖 *' + str(chat_data['bot_count']) + '* Bots\n🌎 *' + str(chat_data['lang_count']) + '* ' + \
-           strings[chat_data['lang']]['langs'] + '\n🗨 *' + str(chat_data['str_count']) + '* Strings\n   🗣 *' + str(
+           strings[chat_data['lang']]['langs'] + '\n🗨 *' + str(chat_data['str_count']) + '* Strings\n🗣 *' + str(
         chat_data['val_count']) + '* ' + strings[chat_data['lang']]['trans']
 
 
@@ -225,7 +272,7 @@ def reply_button(bot, update, chat_data):
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
     elif arg_one == 'langyes':
-        pass
+        start_translation(update.callback_query, chat_data, edit=True)
     elif arg_one == 'langno':
         db = Database(cfg)
         msg = strings[chat_data['lang']]['ok'] + '! 😬\n' + strings[chat_data['lang']]['tr_lang_cho'] + ' ⬇️'
@@ -238,13 +285,21 @@ def reply_button(bot, update, chat_data):
         for lang in list(strings):
             language, flag = db.get_language(lang)
             languages.append([language + ' ' + flag if flag else language, lang])
-        keyboard = [InlineKeyboardButton(lang[0], callback_data='langcho_' + lang[1]) for lang in languages]
-        keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
-        update.callback_query.message.edit_text(msg, reply_markup=InlineKeyboardMarkup(keyboard),
-                                                parse_mode=ParseMode.MARKDOWN)
+        keyboard = get_tworow_keyboard(languages, "langcho_")
+        update.callback_query.message.edit_text(msg, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
     elif arg_one == 'langcho':
         db = Database(cfg)
         db.update_language(update.callback_query.message.chat.id, arg_two)
+        start_translation(update.callback_query, chat_data, edit=True)
+    elif arg_one == 'fromlang':
+        chat_data['flang'] = arg_two
+        choose_lang_to(update, chat_data)
+
+
+def get_tworow_keyboard(str_list, callback):
+    keyboard = [InlineKeyboardButton(lang[0], callback_data=callback + lang[1]) for lang in str_list]
+    keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
+    return InlineKeyboardMarkup(keyboard)
 
 
 def error(bot, update, error):
