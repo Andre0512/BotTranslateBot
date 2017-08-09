@@ -346,21 +346,34 @@ def reply_button(bot, update, chat_data):
 
 
 def get_progress_bar(value, total):
-    result = '█' * int(value / total * 15)
+    result = '█' * int((value / total * 15) + 1)
     result = result + (15 - len(result)) * '▒'
+    return result
+
+
+def get_number_emoji(number):
+    emoji_list = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+    result = ''
+    for x in str(number):
+        result = result + emoji_list[int(x)]
     return result
 
 
 def translate_text(update, chat_data, db, number, first=False):
     word = db.get_words(chat_data['strings'][number], chat_data['flangid'])[0]
+    transl_words = db.get_words(chat_data['strings'][number], chat_data['tlangid'])
     google = get_google_translation(chat_data, word)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton('◀️', callback_data='translnav_' + str(number - 1)),
-                                      InlineKeyboardButton('▶️', callback_data='translnav_' + str(number + 1))]])
+                                      InlineKeyboardButton(strings[chat_data['lang']]['skip'] + ' ▶️',
+                                                           callback_data='translnav_' + str(number + 1))]])
     length = str(len(chat_data['strings']))
     msg = '@' + chat_data['bot'] + ' ' + strings[chat_data['lang']]['transl'] + ' ' + (
-        str(number) if number > 9 else '0' + str(number)) + '/' + (
+        str(number + 1) if (number + 1) > 9 else '0' + str(number + 1)) + '/' + (
               length if int(length) > 9 else '0' + length) + '\n' + get_progress_bar(number, len(
-        chat_data['strings'])) + '\n\n_' + word + '_' + '\n\n*Google Translate:*\n`' + google + '`'
+        chat_data['strings'])) + '\n\n_' + word + '_' + '\n\n*Google Translate 🗣*\n`' + google + '`'
+    for index, string in enumerate(transl_words):
+        msg = msg + '\n*' + strings[chat_data['lang']]['sugg'] + '* ' + str(
+            get_number_emoji(index + 1)) + '\n`' + string + '`'
     if first:
         update.callback_query.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard)
     else:
@@ -376,7 +389,7 @@ def have_translate_data(update, chat_data):
     chat_data['strings'] = db.get_strings(chat_data['bot'])
     chat_data['flangid'] = db.get_translation(chat_data['bot'], chat_data['flang'])
     chat_data['tlangid'] = db.get_translation(chat_data['bot'], chat_data['tlang'])
-    translate_text(update, chat_data, db, 0)
+    translate_text(update, chat_data, db, 0, first=True)
 
 
 def manage_search_kb(update, chat_data):
