@@ -95,13 +95,17 @@ def ask_for_strings(form, update, chat_data):
 def handle_file(bot, update, chat_data):
     file_type = update.message.document.file_name.split(".")[-1]
     file_name = str(update.message.from_user.id) + "_" + update.message.document.file_name
-    if file_type in ["json", "yaml"]:
+    if file_type in ["json", "yml"]:
         file_id = bot.getFile(update.message.document.file_id)
         file_id.download(custom_path=os.path.join(os.path.dirname(__file__), "downloads/") + file_name)
         msg = strings[chat_data['lang']]['add_receiv'].replace("@filename",
                                                                "`" + update.message.document.file_name + "`")
-        message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        message_id = update.message.reply_text(msg + ' ✅', parse_mode=ParseMode.MARKDOWN)
         read_string_file(file_name, msg, message_id, bot, chat_data, update.message.from_user.id)
+    else:
+        msg = strings[chat_data['lang']]['add_nreceiv'].replace("@filename",
+                                                                "`" + update.message.document.file_name + "` ☹️")
+        message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 def add_bot(update, lang):
@@ -128,14 +132,14 @@ def set_bot_name(update, lang, chat_data, db):
             parse_mode=ParseMode.MARKDOWN)
     else:
         update.message.reply_text(
-            strings[chat_data['lang']]['add_name_err'] + '\n' + strings[chat_data['lang']]['add_again'] + ' 😬',
+            strings[chat_data['lang']]['add_name_err'] + '\n' + strings[chat_data['lang']]['again'] + ' 😬',
             reply_markup=ForceReply())
 
 
 def analyse_str_msg(chat_data, update, bot):
     data = update.message.text
     file_type = "json" if data[:1] == '[' or data[:1] == '{' else False
-    file_type = "yaml" if re.match('^.{1,32}:', data) else file_type
+    file_type = "yml" if re.match('^.{1,32}:', data) else file_type
     if bool(file_type):
         msg = file_type.upper() + strings[chat_data['lang']]['add_text'] + ' ✅'
         message_id = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
@@ -144,7 +148,7 @@ def analyse_str_msg(chat_data, update, bot):
             text_file.write(data.encode('utf-8'))
         read_string_file(file_name, msg, message_id, bot, chat_data, update.message.from_user.id)
     else:
-        msg = strings[chat_data['lang']]['add_err'] + ' 😅' + '\n\n' + strings[chat_data['lang']]['add_again']
+        msg = strings[chat_data['lang']]['add_err'] + ' 😅' + '\n\n' + strings[chat_data['lang']]['again']
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')]])
         update.message.reply_text(msg, reply_markup=keyboard)
@@ -171,12 +175,12 @@ def read_string_file(file_name, msg, message_id, bot, chat_data, user_id):
     file_type = file_name.split(".")[-1]
     if file_type == "json":
         data, state = read_json("downloads/" + file_name)
-    elif file_type == "yaml":
+    elif file_type == "yml":
         data, state = ReadYaml.get_yml("downloads/" + file_name)
         state = re.sub('\"[^"]*\"', 'file', state) if not state is True else state
     if not state is True:
         msg = msg + "\n\n" + strings[chat_data['lang']]['error'] + " ☹️\n`" + state + "` " + '\n\n' + \
-              strings[chat_data['lang']]['add_again']
+              strings[chat_data['lang']]['again']
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton('❌ ' + strings[chat_data['lang']]['cancel'], callback_data='exitadding')]])
         bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
@@ -223,7 +227,7 @@ def read_string_file(file_name, msg, message_id, bot, chat_data, user_id):
                 language = chat_data['bot_languages'][key][1] + ' (' + chat_data['bot_languages'][key][0] + ')'
             except KeyError:
                 msg = msg + '\n\n' + strings[chat_data['lang']]['add_val_err'].replace('@lang', '*' + key + '*') + ' ❌'
-                msg = msg + '\n\n' + strings[chat_data['lang']]['add_again']
+                msg = msg + '\n\n' + strings[chat_data['lang']]['again']
                 bot.edit_message_text(chat_id=message_id.chat.id, message_id=message_id.message_id, text=msg,
                                       parse_mode=ParseMode.MARKDOWN)
                 return

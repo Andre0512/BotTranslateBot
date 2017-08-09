@@ -13,7 +13,8 @@ de:
   add_lango: Sende mir als nächstes die Strings in @language
   add_format: "Folgende Formate werden unterstützt:@examples"
   add_pos: Du kannst mir eine Datei im Format `.yml` bzw `.json` senden oder mir die Strings direkt als Nachricht senden
-  add_receiv: Datei @filename erhalten.
+  add_receiv: Datei @filename erhalten
+  add_nreceiv: Datei @filename ist nicht im Format `.yml` oder `.json`
   add_file: -Datei erfolgreich validiert
   add_text: -Datei erkannt
   add_err: Die Nachricht enthält kein unterstützes Datei-Format
@@ -23,7 +24,7 @@ de:
   add_name_err: Bot Name ungültig!
   add_name_err2: Das hat nicht geklappt!\nVermutlich ist @name bereits hinzugefügt wurden!\n\nTeste es mit @link\n\nWenn dein Bot unrechtmäßig von Dritten hinzugefügt wurde, bitte an @owner wenden
   add_val_err: "@lang ist kein gültiger Sprachcode!"
-  add_again: Versuche es nocheinmal...
+  again: Versuche es nocheinmal...
   link: Hier ist dein persönlicher Link
   link_desc: Über diesen Link kann direkt mit der Übersetzung deines Bots gestartet werden
   error: Das hat nicht funktioniert
@@ -47,3 +48,7 @@ de:
   tr_lang_no: Nein, andere
   tr_lang_cho: Du kannst aktuell zwischen folgenden Sprachen wählen
   tr_from: Aus welcher Sprache willst du übersetzen?\nDer Bot ist aktuell in folgenden Sprachen verfügbar
+  tr_to: In welche Sprache soll übersetzt werden?\nDiese Tastatur hilft dir deine Sprache in den circa 200 unterstützen Sprachen zu finden
+  tr_to_ask: Welche der Folgenden meintest du?
+  tr_to_f: Entschuldigung, leider konnte ich nichts finden
+  tr_start: Alles klar! Jetzt können wir starten
