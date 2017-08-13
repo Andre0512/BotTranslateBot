@@ -7,3 +7,5 @@ database:
   database: <DB-NAME>
   user: <DB-USERNAME>
   password: <DB-PASSWORD>
+debug:
+  windows: <TRUE/FALSE>

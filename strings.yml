@@ -53,4 +53,6 @@ de:
   tr_to: In welche Sprache soll übersetzt werden?\nDiese Tastatur hilft dir deine Sprache in den circa 200 unterstützen Sprachen zu finden
   tr_to_ask: Welche der Folgenden meintest du?
   tr_to_f: Entschuldigung, leider konnte ich nichts finden
-  tr_start: Alles klar! Jetzt können wir starten
+  tr_start: Alles klar! Jetzt können wir starten!
+  tr_instr: Deine Aufgabe ist es, eine vorgeschlagene Übersetzung auszuwählen oder mir eine bessere zu senden
+  tr_again: Danke, aber einmal reicht

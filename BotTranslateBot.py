@@ -4,7 +4,7 @@
 import re
 from telegram.ext.dispatcher import run_async
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
-from telegram import ReplyKeyboardMarkup, ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction
 import logging
 import pymysql as mdb
 import ReadYaml
@@ -72,6 +72,17 @@ class Database:
             if length == 0:
                 self.cur.execute("INSERT INTO strings (bot_id, name) " + "VALUES (%s, %s);", (str(bot_id), string))
         self.con.commit()
+
+    def insert_confirmation(self, word_id, user_id):
+        self.cur.execute("SELECT word_id FROM confirmations WHERE word_id=%s and user_id=%s",
+                         (str(word_id), str(user_id)))
+        length = len(self.cur.fetchall())
+        if length == 0:
+            self.cur.execute("INSERT INTO confirmations (word_id, user_id) " + "VALUES (%s, %s);",
+                             (str(word_id), str(user_id)))
+            self.con.commit()
+            return True
+        return False
 
     def insert_bot_language(self, bot_name, lang_list):
         bot_id = self.__get_bot_id(bot_name)
@@ -142,8 +153,8 @@ class Database:
         return result
 
     def get_words(self, string_id, transl_id):
-        self.cur.execute("SELECT value FROM words WHERE string_id=%s AND translation_id=%s", (string_id, transl_id))
-        result = [item[0] for item in self.cur.fetchall()]
+        self.cur.execute("SELECT value, id FROM words WHERE string_id=%s AND translation_id=%s", (string_id, transl_id))
+        result = [item[0:2] for item in self.cur.fetchall()]
         return result
 
     def get_translation(self, bot_name, lang):
@@ -196,15 +207,19 @@ def start(bot, update, chat_data):
 
 
 @run_async
-def get_google_translation(chat_data, word, msg, msg_data, number, bot):
-    response = muterun_js('google_translate.js ' + chat_data['flang'] + ' ' + chat_data['tlang'] + ' "' + word + '"')
-    if response.exitcode == 0:
-        result = response.stdout.decode('utf-8')
-    else:
-        result = response.stderr.decode('utf-8')
+def add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words):
+    result = "DEBUG\n"
+    if not cfg["debug"]["windows"]:
+        response = muterun_js(
+            'google_translate.js ' + chat_data['flang'] + ' ' + chat_data['tlang'] + ' "' + word + '"')
+        if response.exitcode == 0:
+            result = response.stdout.decode('utf-8')
+        else:
+            result = response.stderr.decode('utf-8')
     msg = msg.replace("Übersetzen" + "...\n", result)
-    bot.edit_message_text(chat_id=msg_data.chat.id, message_id=msg_data.message_id, text=msg, parse_mode=ParseMode.MARKDOWN,
-        reply_markup=get_tr_keyboard(number, chat_data, active=True))
+    bot.edit_message_text(chat_id=msg_data.chat.id, message_id=msg_data.message_id, text=msg,
+                          parse_mode=ParseMode.MARKDOWN,
+                          reply_markup=get_tr_keyboard(number, chat_data, transl_words, active=True))
 
 
 def get_start_text(chat_data, add=None):
@@ -307,9 +322,10 @@ def handle_file(bot, update, chat_data):
 
 
 def reply_button(bot, update, chat_data):
-    update.callback_query.answer()
     arg_list = update.callback_query.data.split("_")
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
+    if arg_one not in ["confirm"]:
+        update.callback_query.answer()
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
     elif arg_one == 'langyes':
@@ -347,6 +363,11 @@ def reply_button(bot, update, chat_data):
     elif arg_one == 'translnav':
         db = Database(cfg)
         translate_text(update, chat_data, db, int(arg_two), bot)
+    elif arg_one == 'confirm':
+        db = Database(cfg)
+        if not db.insert_confirmation(arg_two.split(' ')[0], update.callback_query.message.chat.id):
+            update.callback_query.answer(text=strings[chat_data["lang"]]['tr_again'] + ' 😉')
+        translate_text(update, chat_data, db, int(arg_two.split(' ')[1]), bot)
 
 
 def get_progress_bar(value, total):
@@ -363,16 +384,22 @@ def get_number_emoji(number):
     return result
 
 
-def get_tr_keyboard(number, chat_data, active=False):
-    keyboard = [[InlineKeyboardButton('◀️', callback_data='translnav_' + str(number - 1) if active else 'Wait'),
-                                      InlineKeyboardButton(strings[chat_data['lang']]['skip'] + ' ▶️',
-                                                           callback_data='translnav_' + str(number + 1) if active else 'Wait')]]
+def get_tr_keyboard(number, chat_data, transl_words, active=False):
+    keyboard = []
+    for index, word_id in enumerate(transl_words):
+        keyboard.append(InlineKeyboardButton(strings[chat_data['lang']]['sugg'] + ' ' + str(
+            get_number_emoji(index + 1)), callback_data='confirm_' + str(word_id[1]) + ' ' + str(
+            number + 1) if active else 'Wait'))
+    keyboard.append(InlineKeyboardButton('Google 🗣', callback_data='google_' + str(number - 1) if active else 'Wait'))
+    keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
+    keyboard.append([InlineKeyboardButton('◀️', callback_data='translnav_' + str(number - 1) if active else 'Wait'),
+                     InlineKeyboardButton(strings[chat_data['lang']]['skip'] + ' ▶️',
+                                          callback_data='translnav_' + str(number + 1) if active else 'Wait')])
     return InlineKeyboardMarkup(keyboard)
 
 
-
 def translate_text(update, chat_data, db, number, bot, first=False):
-    word = db.get_words(chat_data['strings'][number], chat_data['flangid'])[0]
+    word = db.get_words(chat_data['strings'][number], chat_data['flangid'])[0][0]
     transl_words = db.get_words(chat_data['strings'][number], chat_data['tlangid'])
     google = "Übersetzen...\n"
     length = str(len(chat_data['strings']))
@@ -382,19 +409,25 @@ def translate_text(update, chat_data, db, number, bot, first=False):
         chat_data['strings'])) + '\n\n_' + word + '_' + '\n\n*Google Translate 🗣*\n`' + google + '`'
     for index, string in enumerate(transl_words):
         msg = msg + '\n*' + strings[chat_data['lang']]['sugg'] + '* ' + str(
-            get_number_emoji(index + 1)) + '\n`' + string + '`'
+            get_number_emoji(index + 1)) + '\n`' + string[0] + '`'
     if first:
-        msg_data = update.callback_query.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN, reply_markup=get_tr_keyboard(number, chat_data))
+        msg_data = update.callback_query.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN,
+                                                            action=ChatAction.TYPING,
+                                                            reply_markup=get_tr_keyboard(number, chat_data,
+                                                                                         transl_words))
     else:
-        msg_data = update.callback_query.message.edit_text(msg, parse_mode=ParseMode.MARKDOWN, reply_markup=get_tr_keyboard(number, chat_data))
-    get_google_translation(chat_data, word, msg, msg_data, number, bot)
+        msg_data = update.callback_query.message.edit_text(msg, parse_mode=ParseMode.MARKDOWN,
+                                                           action=ChatAction.TYPING,
+                                                           reply_markup=get_tr_keyboard(number, chat_data,
+                                                                                        transl_words))
+    add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words)
 
 
 def have_translate_data(update, chat_data, bot):
     db = Database(cfg)
     language = db.get_language(chat_data['tlang'])
     chat_data['lang_to'] = language[0] + ' ' + language[1] if language[1] else language[0]
-    msg = strings[chat_data['lang']]['tr_start'] + ' 😁'
+    msg = strings[chat_data['lang']]['tr_start'] + '\n' + strings[chat_data['lang']]['tr_instr'] + ' 😁'
     update.callback_query.message.edit_text(get_start_text(chat_data, add=msg))
     chat_data['strings'] = db.get_strings(chat_data['bot'])
     chat_data['flangid'] = db.get_translation(chat_data['bot'], chat_data['flang'])
