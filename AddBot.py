@@ -272,7 +272,7 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
         add_language(chat_data, arg_two, update.callback_query)
     if arg_one == 'langchoosen':
         db = Database(cfg)
-        db.insert_bot_language(chat_data['bot_name'], chat_data['bot_lang'])
+        db.insert_bot_language(chat_data['bot_name'], chat_data['bot_lang'], 0)
         if len(chat_data["bot_lang"]) > 1:
             add = strings[chat_data['lang']]['add_type']
             keyboard = InlineKeyboardMarkup(
