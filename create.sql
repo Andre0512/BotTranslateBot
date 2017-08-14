@@ -130,3 +130,10 @@ ALTER TABLE `words`
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+INSERT INTO `languages`
+  (`language_code`, `name`, `native_name`)
+  VALUES ('de', 'German', 'Deutsch');
+INSERT INTO `users`
+  (`id`, `username`, `forename`, `surname`, `lang_code`)
+  VALUES (0, 'google', 'Google', 'Translate', 'de')

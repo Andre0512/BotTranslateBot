@@ -95,7 +95,7 @@ class Database:
         self.con.commit()
 
     def insert_word(self, value, string_id, transl_id, user_id):
-        self.cur.execute("INSERT INTO words (translation_id, value, creator_id, string_id) VALUES (%s, %s,%s, %s)",
+        self.cur.execute("INSERT INTO words (translation_id, value, creator_id, string_id) VALUES (%s, %s, %s, %s)",
                          (transl_id, value, user_id, string_id))
         self.con.commit()
 
@@ -167,15 +167,16 @@ class Database:
         return result
 
     def get_word(self, string_id, transl_id):
-        self.cur.execute("SELECT value, id FROM words WHERE string_id=%s AND translation_id=%s", (string_id, transl_id))
+        self.cur.execute("SELECT value, id FROM words WHERE string_id=%s AND translation_id=%s",
+                         (string_id, transl_id))
         result = [item[0] for item in self.cur.fetchall()]
         return result
 
     def get_words(self, string_id, transl_id):
-        self.cur.execute("SELECT w.value, w.id, COUNT(c.user_id) FROM words w LEFT JOIN confirmations c ON " +
-                         "w.id=c.word_id WHERE w.string_id=%s AND w.translation_id=%s GROUP BY w.id",
-                         (string_id, transl_id))
-        result = [item[0:3] for item in self.cur.fetchall()]
+        self.cur.execute("SELECT w.value, w.id, COUNT(c.user_id), u.username FROM words w LEFT JOIN confirmations c ON"
+                         + " w.id=c.word_id INNER JOIN users u ON w.creator_id=u.id WHERE w.string_id=%s AND"
+                         + " w.translation_id=%s GROUP BY w.id ORDER BY u.id", (string_id, transl_id))
+        result = [item[0:4] for item in self.cur.fetchall()]
         return result
 
     def get_translation(self, bot_name, lang):
@@ -228,13 +229,14 @@ def start(bot, update, chat_data):
 
 
 @run_async
-def add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words, confirm):
+def add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words, confirm, db):
     result = "DEBUG\n"
     if not cfg["debug"]["windows"]:
         response = muterun_js(
             'google_translate.js ' + chat_data['flang'] + ' ' + chat_data['tlang'] + ' "' + word + '"')
         if response.exitcode == 0:
             result = response.stdout.decode('utf-8')
+            db.insert_word(result, chat_data['strings'][int(number)], chat_data['tlangid'], 0)
         else:
             result = response.stderr.decode('utf-8')
     msg = msg.replace("Übersetzen" + "...\n", result)
@@ -316,8 +318,8 @@ def reply(bot, update, chat_data):
     elif 'mode' in chat_data and chat_data['mode'] == "get_file":
         AddBot.analyse_str_msg(chat_data, update, bot)
     elif 'mode' in chat_data and chat_data['mode'].split('_')[0] == 'tr':
-        db.insert_word(update.message.text, chat_data['strings'][int(chat_data['mode'].split('_')[1])], chat_data['tlangid'],
-                       update.message.from_user.id)
+        db.insert_word(update.message.text, chat_data['strings'][int(chat_data['mode'].split('_')[1])],
+                       chat_data['tlangid'], update.message.from_user.id)
         chat_data['confirm_own'] = db.get_last_word_id()
         translate_text(update, chat_data, db, int(chat_data['mode'].split('_')[1]), bot, first=True, confirm=True)
     else:
@@ -422,8 +424,8 @@ def get_tr_keyboard(number, chat_data, transl_words, confirm, active=False):
             number + 1) if active else 'Wait'))
     keyboard.append(InlineKeyboardButton('Google 🗣', callback_data='google_' + str(number - 1) if active else 'Wait'))
     keyboard = [InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['sugg'] + ' ' + str(
-            get_number_emoji(len(transl_words))), callback_data='confirm_' + str(transl_words[-1][1]) + ' ' + str(
-            number + 1) if active else 'Wait')] if confirm else keyboard
+        get_number_emoji(len(transl_words))), callback_data='confirm_' + str(transl_words[-1][1]) + ' ' + str(
+        number + 1) if active else 'Wait')] if confirm else keyboard
     keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
     keyboard.append([InlineKeyboardButton('◀️', callback_data='translnav_' + str(number - 1) if active else 'Wait'),
                      InlineKeyboardButton(strings[chat_data['lang']]['skip'] + ' ▶️',
@@ -432,11 +434,18 @@ def get_tr_keyboard(number, chat_data, transl_words, confirm, active=False):
 
 
 def translate_text(update, chat_data, db, number, bot, first=False, confirm=False):
-    if 'confirm_own' in chat_data and not confirm:
-        chat_data.pop('confirm_own', None)
     word = db.get_word(chat_data['strings'][number], chat_data['flangid'])[0]
     transl_words = db.get_words(chat_data['strings'][number], chat_data['tlangid'])
+    if 'confirm_own' in chat_data and not confirm:
+        chat_data.pop('confirm_own', None)
+    # elif 'confirm_own' in chat_data:
+    #    if transl_words[-1][0] in [transl_words[:][0] + google]
+    google_exists = False
     google = "Übersetzen...\n"
+    if transl_words[0][3] == 'google':
+        google_exists = True
+        google = transl_words[0][0] + '\n'
+        del transl_words[0]
     length = str(len(chat_data['strings']))
     msg = '@' + chat_data['bot'] + ' ' + strings[chat_data['lang']]['transl'] + ' ' + (
         str(number + 1) if (number + 1) > 9 else '0' + str(number + 1)) + '/' + (
@@ -456,7 +465,8 @@ def translate_text(update, chat_data, db, number, bot, first=False, confirm=Fals
                                             reply_markup=get_tr_keyboard(number, chat_data,
                                                                          transl_words, confirm))
     chat_data['mode'] = 'tr_' + str(number)
-    add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words, confirm)
+    if not google_exists:
+        add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words, confirm, db)
 
 
 def have_translate_data(update, chat_data, bot):
