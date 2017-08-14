@@ -152,9 +152,16 @@ class Database:
         result = [item[0] for item in self.cur.fetchall()]
         return result
 
-    def get_words(self, string_id, transl_id):
+    def get_word(self, string_id, transl_id):
         self.cur.execute("SELECT value, id FROM words WHERE string_id=%s AND translation_id=%s", (string_id, transl_id))
-        result = [item[0:2] for item in self.cur.fetchall()]
+        result = [item[0] for item in self.cur.fetchall()]
+        return result
+
+    def get_words(self, string_id, transl_id):
+        self.cur.execute("SELECT w.value, w.id, COUNT(c.user_id) FROM words w INNER JOIN confirmations c ON " +
+                         "w.id=c.word_id WHERE w.string_id=%s AND w.translation_id=%s GROUP BY w.id",
+                         (string_id, transl_id))
+        result = [item[0:3] for item in self.cur.fetchall()]
         return result
 
     def get_translation(self, bot_name, lang):
@@ -367,6 +374,8 @@ def reply_button(bot, update, chat_data):
         db = Database(cfg)
         if not db.insert_confirmation(arg_two.split(' ')[0], update.callback_query.message.chat.id):
             update.callback_query.answer(text=strings[chat_data["lang"]]['tr_again'] + ' 😉')
+        else:
+            update.callback_query.answer()
         translate_text(update, chat_data, db, int(arg_two.split(' ')[1]), bot)
 
 
@@ -399,7 +408,7 @@ def get_tr_keyboard(number, chat_data, transl_words, active=False):
 
 
 def translate_text(update, chat_data, db, number, bot, first=False):
-    word = db.get_words(chat_data['strings'][number], chat_data['flangid'])[0][0]
+    word = db.get_word(chat_data['strings'][number], chat_data['flangid'])[0]
     transl_words = db.get_words(chat_data['strings'][number], chat_data['tlangid'])
     google = "Übersetzen...\n"
     length = str(len(chat_data['strings']))
@@ -408,8 +417,8 @@ def translate_text(update, chat_data, db, number, bot, first=False):
               length if int(length) > 9 else '0' + length) + '\n' + get_progress_bar(number, len(
         chat_data['strings'])) + '\n\n_' + word + '_' + '\n\n*Google Translate 🗣*\n`' + google + '`'
     for index, string in enumerate(transl_words):
-        msg = msg + '\n*' + strings[chat_data['lang']]['sugg'] + '* ' + str(
-            get_number_emoji(index + 1)) + '\n`' + string[0] + '`'
+        msg = msg + '\n*' + strings[chat_data['lang']]['sugg'] + '* ' + str(get_number_emoji(index + 1)) + (
+        ' (' + str(string[2]) + 'x👍)' if string[2] > 1 else '') + '\n`' + string[0] + '`'
     if first:
         msg_data = update.callback_query.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN,
                                                             action=ChatAction.TYPING,
