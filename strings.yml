@@ -38,14 +38,17 @@ de:
   from: Von
   to: Nach
   ok: Okay
+  original: Original
   cancel_msg: Vorgang wurde abgebrochen
   cur_lang: "Aktuell unterstützte Sprachen:"
   lang_nf: Sprache nicht gefunden!\nBitte versuche es nocheinmal
   my_profile: Mein Profil
+  ask_action: Was möchtest du machen?
   langs: Sprachen
   trans: Übersetzungen
   tr_greeting: Hallo @name\nDieser Bot hilft dabei, @bot_name in andere Sprachen zu übersetzen
   tr_lang: Ich konnte ermitteln das deine Sprache @lang ist
+  tr_lang_c: Okay, dann rede ich mit dir in @lang!
   tr_lang_fnd: Soll ich weiterhin mit dir auf @lang reden?
   tr_lang_no: Nein, andere
   tr_lang_cho: Du kannst aktuell zwischen folgenden Sprachen wählen
@@ -55,3 +58,4 @@ de:
   tr_to_f: Entschuldigung, leider konnte ich nichts finden
   tr_start: Alles klar! Jetzt können wir starten!
   tr_instr: Deine Aufgabe ist es, eine vorgeschlagene Übersetzung auszuwählen oder mir eine bessere zu senden
+  tr_by: von
