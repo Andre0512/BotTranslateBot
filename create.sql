@@ -47,6 +47,7 @@ CREATE TABLE `users` (
   `forename` varchar(64) NOT NULL,
   `surname` varchar(64) DEFAULT NULL,
   `lang_code` varchar(5) NOT NULL,
+  `orginal_lang` varchar(5) NOT NULL,
   `country_code` varchar(5) DEFAULT NULL,
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -56,7 +57,8 @@ CREATE TABLE `words` (
   `value` text NOT NULL,
   `string_id` int(12) NOT NULL,
   `translation_id` int(12) NOT NULL,
-  `creator_id` int(12) NOT NULL
+  `creator_id` int(12) NOT NULL,
+  `google` int(1) DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -85,7 +87,8 @@ ALTER TABLE `translations`
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `id` (`id`),
-  ADD KEY `lang_code` (`lang_code`);
+  ADD KEY `lang_code` (`lang_code`),
+  ADD KEY `orginal_lang` (`orginal_lang`);
 
 ALTER TABLE `words`
   ADD PRIMARY KEY (`id`),
@@ -97,13 +100,13 @@ ALTER TABLE `words`
 
 
 ALTER TABLE `bots`
-  MODIFY `id` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=342;
+  MODIFY `id` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=343;
 ALTER TABLE `strings`
-  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2140;
+  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2142;
 ALTER TABLE `translations`
-  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 ALTER TABLE `words`
-  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=785;
+  MODIFY `id` int(12) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=798;
 
 ALTER TABLE `bots`
   ADD CONSTRAINT `bots_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -120,7 +123,8 @@ ALTER TABLE `translations`
   ADD CONSTRAINT `translations_ibfk_2` FOREIGN KEY (`bot_id`) REFERENCES `bots` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `users`
-  ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`lang_code`) REFERENCES `languages` (`language_code`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`lang_code`) REFERENCES `languages` (`language_code`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `users_ibfk_2` FOREIGN KEY (`orginal_lang`) REFERENCES `languages` (`language_code`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `words`
   ADD CONSTRAINT `words_ibfk_1` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,

@@ -26,20 +26,24 @@ class Database:
         self.cur = self.con.cursor()
 
     def insert_user(self, user):
-        insert_query = """INSERT INTO users (forename, lang_code, country_code, surname, username, id) 
-                 VALUES (%s, %s, %s, %s, %s ,%s);"""
-        update_query = """UPDATE users SET forename=%s, lang_code=%s, country_code=%s, surname=%s, username=%s 
-                        WHERE id=%s"""
-        values = (user.first_name, user.language_code.split("-")[0], user.language_code.split("-")[-1],
-                  user.last_name if user.last_name else '', user.username if user.username else '', str(user.id))
+        insert_query = """INSERT INTO users (forename, lang_code, orginal_lang, country_code, surname, username, id) 
+                 VALUES (%s, %s, %s, %s, %s, %s ,%s);"""
+        update_query = """UPDATE users SET forename=%s, orginal_lang=%s, country_code=%s, surname=%s, 
+                    username=%s WHERE id=%s"""
+        lang = user.language_code.split("-")[0] if user.language_code else 'en'
+        country = user.language_code.split("-")[1] if user.language_code and len(
+            user.language_code.split('-')[1]) > 1 else ''
+        values = [user.first_name, lang, lang, country, user.last_name if user.last_name else '',
+                  user.username if user.username else '', str(user.id)]
         try:
-            self.cur.execute(insert_query, values)
+            self.cur.execute(insert_query, tuple(values))
             state = True
         except mdb.err.IntegrityError as e:  # Update user, if exists
-            self.cur.execute(update_query, values)
+            values.pop(2)
+            self.cur.execute(update_query, tuple(values))
             state = False
         self.con.commit()
-        return state
+        return state, lang
 
     def update_language(self, user_id, lang_code):
         self.cur.execute("UPDATE users SET lang_code=%s WHERE id=%s", (lang_code, user_id))
@@ -225,10 +229,13 @@ def read_languages(bot, update):
 
 def start(bot, update, chat_data):
     db = Database(cfg)
-    state = db.insert_user(update.message.from_user)
-    lang = db.get_user_data(update.message.from_user.id)
-    chat_data['lang'] = lang
-    if not lang in strings:
+    state, lang = db.insert_user(update.message.from_user)
+    if state:
+        chat_data['lang'] = lang
+    else:
+        if 'lang' not in chat_data:
+            chat_data['lang'] = db.get_user_data(update.message.from_user.id)
+    if lang not in strings:
         chat_data['lang'] = 'en'
         chat_data['orginal_lang'] = lang
     if update.message.text.split(" ")[-1] == "/start":
@@ -242,8 +249,6 @@ def start(bot, update, chat_data):
             start_translate_new(update, chat_data)
         else:
             start_translation(update, chat_data)
-            # update.message.reply_text(update.message.text.split(" ")[-1], reply_markup=ReplyKeyboardMarkup([[
-            #     strings[update.message.from_user.language_code.split("-")[0]]['add_bot']]], resize_keyboard=True))
 
 
 @run_async
@@ -298,7 +303,7 @@ def choose_lang_to(update, chat_data):
 
 
 def start_translate_new(update, chat_data, edit=False):
-    chat_data['orginal_lang'] = 'uk'
+    #chat_data['orginal_lang'] = 'uk'
     db = Database(cfg)
     user = update.callback_query.message.chat.first_name if edit else update.message.from_user.first_name
     language, flag, x = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
@@ -334,11 +339,12 @@ def get_search_keyboard():
 
 def reply(bot, update, chat_data):
     db = Database(cfg)
-    lang = db.get_user_data(update.message.from_user.id)
+    if 'lang' not in chat_data:
+        chat_data['lang'] = db.get_user_data(update.message.from_user.id)
     if update.message.reply_to_message:
-        if re.match(strings[lang]['add_cmd'].split("@")[0], update.message.reply_to_message.text) \
+        if re.match(strings[chat_data['lang']]['add_cmd'].split("@")[0], update.message.reply_to_message.text) \
                 or re.match(strings[chat_data['lang']]['add_name_err'], update.message.reply_to_message.text):
-            AddBot.set_bot_name(update, lang, chat_data, db)
+            AddBot.set_bot_name(update, chat_data['lang'], chat_data, db)
     elif 'mode' in chat_data and chat_data['mode'] == "get_file":
         AddBot.analyse_str_msg(chat_data, update, bot)
     elif 'mode' in chat_data and chat_data['mode'].split('_')[0] == 'tr':
@@ -348,8 +354,8 @@ def reply(bot, update, chat_data):
         chat_data['confirm_own'] = db.get_last_word_id()
         translate_text(update, chat_data, db, int(chat_data['mode'].split('_')[1]), bot, first=True, confirm=True)
     else:
-        if update.message.text == '➕ ' + strings[lang]['add_bot']:
-            AddBot.add_bot(update, lang)
+        if update.message.text == '➕ ' + strings[chat_data['lang']]['add_bot']:
+            AddBot.add_bot(update, chat_data['lang'])
         elif update.message.text == '👤 ' + strings[chat_data['lang']]['my_profile']:
             my_profile(update, chat_data)
         else:
@@ -375,11 +381,18 @@ def handle_file(bot, update, chat_data):
 
 
 def reply_button(bot, update, chat_data):
+    if 'lang' not in chat_data:
+        db = Database(cfg)
+        chat_data['lang'] = db.get_user_data(update.message.from_user.id)
     arg_list = update.callback_query.data.split("_")
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
     elif arg_one == 'langyes':
+        if 'orginal_lang' in chat_data:
+            db = Database(cfg)
+            db.update_language(update.callback_query.message.chat.id, chat_data['lang'])
+            chat_data.pop("orginal_lang", None)
         if 'bot' in chat_data:
             start_translation(update.callback_query, chat_data, edit=True)
         else:
