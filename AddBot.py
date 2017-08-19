@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import re
-from telegram import ReplyKeyboardMarkup, ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
 from BotTranslateBot import Database
 import ReadYaml
 import json
@@ -303,7 +303,7 @@ def cancel_adding(chat_data):
     delete_adding_values(chat_data)
 
 
-def set_gloabl(config, all_strings):
+def set_global(config, all_strings):
     global cfg
     cfg = config
     global strings
