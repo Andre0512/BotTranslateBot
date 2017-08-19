@@ -3,7 +3,7 @@
 
 import re
 from telegram import ForceReply, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
-from BotTranslateBot import Database
+from Database import Database
 import ReadYaml
 import json
 import os
