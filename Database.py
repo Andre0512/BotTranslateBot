@@ -123,6 +123,12 @@ class Database:
         language = [item[0] for item in self.cur.fetchall()][0]
         return language
 
+    def get_me_and_him(self, bot_name, user_id):
+        self.cur.execute("SELECT u.id, u.forename, u.surname, u.username FROM users u LEFT JOIN bots b ON u.id="
+                         "b.owner_id WHERE b.name=%s OR u.id=%s GROUP BY u.id", (bot_name, user_id))
+        result = {item[0]: item[1:4] for item in self.cur.fetchall()}
+        return result
+
     def get_languages(self, bot_name):
         self.cur.execute("SELECT lang_code FROM translations t INNER JOIN bots b ON t.bot_id=b.id WHERE b.name=%s "
                          + "AND t.state=0", (bot_name,))

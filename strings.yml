@@ -72,4 +72,5 @@ de:
   str_sug: Strings vorgeschlagen
   str_conf: Strings bestätigt
   translated: Danke das du dabei geholfen hast @bot von @lang_from nach @lang_to zu übersetzen!
+  notify: "@user hat geholfen @bot von @from nach @to zu übersetzen"
   bots: Bots

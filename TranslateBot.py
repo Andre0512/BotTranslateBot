@@ -366,11 +366,25 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
         translation_done(bot, update, chat_data, arg_two)
 
 
+@run_async
+def notify_owner(bot, db, stats, data, bot_name, user_id, notify):
+    users = db.get_me_and_him(bot_name, user_id)
+    if len(users) > 1 and data[3] > 0:
+        me = users[user_id]
+        users.pop(user_id)
+        owner = list(users)[0]
+        me = me[0] + ' ' + ((me[1] + ' ') if me[1] else '') + (('(@' + me[2] + ') ') if me[2] else '')
+        msg = notify.replace('@user ', me).replace('@bot', '@' + data[0])
+        msg = msg.replace('@from', data[1]).replace('@to', data[2]) + ' 😊\n\n' + stats
+        bot.send_message(chat_id=owner, text=msg, parse_mode=ParseMode.MARKDOWN)
+
+
 def calc_translation_stats(user_id, transl_id, total, string, chat_data):
     emoji = ['😀', '😃', '😁', '☺️', '😍']
     hearts = ['❤️', '💛', '💚', '💙', '💜', '🖤']
     suggested = ['👨‍🏫', '👩‍🏫'][random.randint(0, 1)]
-    msg = string['tr_thanks'] + ' ' + emoji[random.randint(0, 4)] + hearts[random.randint(0, 5)] + '\n\n'
+    msg = []
+    msg.append(string['tr_thanks'] + ' ' + emoji[random.randint(0, 4)] + hearts[random.randint(0, 5)] + '\n\n')
     db = Database(cfg)
     from_lang = db.get_language(chat_data['flang'])
     to_lang = db.get_language(chat_data['tlang'])
@@ -381,23 +395,27 @@ def calc_translation_stats(user_id, transl_id, total, string, chat_data):
     own_words = db.get_own_words(user_id, transl_id)
     google = str(round(stats[0] / total * 100, 2)) if 0 in stats else str(0.00)
     own = str(round(stats[user_id] / total * 100, 2)) if user_id in stats else str(0.00)
-    msg = msg + '*' + str(own_words) + '* ' + string['str_sug'] + ' ' + suggested + '\n*' + str(skipped) + ' *' + \
-          string['str_conf'] + ':\n'
-    msg = msg + '*' + google + '%* Google 🗣\n*' + own + '%* ' + string['own'] + ' 👤\n'
+    msg.append('*' + str(own_words) + '* ' + string['str_sug'] + ' ' + suggested + '\n*' + str(skipped) + ' *' + string[
+        'str_conf'] + ':\n')
+    msg[1] = msg[1] + '*' + google + '%* Google 🗣\n*' + own + '%* ' + string['own'] + ' 👤\n'
     stats.pop(user_id, None)
     stats.pop(0, None)
     others = sum(stats.values())
-    msg = msg + '*' + str(round(others / total * 100, 2)) + '%* ' + string['others'] + ' 👥\n' if others > 0 else msg
-    msg = msg + '*' + str(round((total - skipped) / total * 100, 2)) + '%* ' + string['skipped'] + ' ▶️\n\n'
-    msg = msg + string['translated'].replace('@bot', '@' + chat_data['bot']).replace('@lang_from', from_lang).replace(
-        '@lang_to', to_lang)
-    return msg
+    msg[1] = msg[1] + '*' + str(round(others / total * 100, 2)) + '%* ' + string[
+        'others'] + ' 👥\n' if others > 0 else msg[1]
+    msg[1] = msg[1] + '*' + str(round((total - skipped) / total * 100, 2)) + '%* ' + string['skipped'] + ' ▶️\n\n'
+    msg.append(string['translated'].replace('@bot', '@' + chat_data['bot']).replace('@lang_from', from_lang).replace(
+        '@lang_to', to_lang))
+    data = [chat_data['bot'], from_lang, to_lang, skipped]
+    return [msg, db, data]
 
 
 def translation_done(bot, update, chat_data, arg_two, add=''):
     translate_text(update.callback_query, chat_data, Database(cfg), int(arg_two), bot, end=True)
-    msg = calc_translation_stats(update.callback_query.message.chat.id, chat_data['tlangid'], len(chat_data['strings']),
-                                 strings[chat_data['lang']], chat_data)
+    msg, db, data = calc_translation_stats(update.callback_query.message.chat.id, chat_data['tlangid'],
+                                           len(chat_data['strings']), strings[chat_data['lang']], chat_data)
+    notify_owner(bot, db, msg[1], data, chat_data['bot'], update.callback_query.message.chat.id,
+                 strings[chat_data['lang']]['notify'])
     chat_data.pop('bot', None)
     chat_data.pop('flang', None)
     chat_data.pop('tlang', None)
@@ -405,7 +423,7 @@ def translation_done(bot, update, chat_data, arg_two, add=''):
     chat_data.pop('strings', None)
     chat_data.pop('tlangid', None)
     chat_data.pop('flangid', None)
-    msg = add + msg
+    msg = add + ''.join(msg)
     update.callback_query.message.reply_text(msg, reply_markup=get_std_keyboard(chat_data),
                                              parse_mode=ParseMode.MARKDOWN)
 
