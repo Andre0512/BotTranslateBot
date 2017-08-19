@@ -67,7 +67,7 @@ def start_translation(bot, update, chat_data, edit=False):
     elif len(lang_list) == 1:
         chat_data['flang'] = lang_list[0][1]
         add = strings[chat_data['lang']]['tr_from_o'].replace('@lang', lang_list[0][0]) + (
-                       ', ' + strings[chat_data['lang']]['tr_from_o'] + ' 😬' if not tfrom else ' 🙃') + '\n\n'
+            ', ' + strings[chat_data['lang']]['tr_from_o'] + ' 😬' if not tfrom else ' 🙃') + '\n\n'
         if tto:
             chat_data['tlang'] = tto[0]
             choose_lang_to(update, chat_data, bot, add2=add, edit=edit)
@@ -93,10 +93,10 @@ def choose_lang_to(update, chat_data, bot, edit=True, add='', add2=''):
         return
     msg = add + strings[chat_data['lang']]['tr_to'] + ' 😊\n' + strings[chat_data['lang']]['add_hint']
     if edit:
-        update.message.edit_text(get_start_text(chat_data, add=msg), reply_markup=get_search_keyboard(),
+        update.message.edit_text(get_start_text(chat_data, add=msg), reply_markup=get_search_keyboard(db, chat_data),
                                  parse_mode=ParseMode.MARKDOWN)
     else:
-        update.message.reply_text(get_start_text(chat_data, add=msg), reply_markup=get_search_keyboard(),
+        update.message.reply_text(get_start_text(chat_data, add=msg), reply_markup=get_search_keyboard(db, chat_data),
                                   parse_mode=ParseMode.MARKDOWN)
 
 
@@ -124,10 +124,14 @@ def start_translate_new(update, chat_data, edit=False):
         update.message.reply_text(msg, reply_markup=keyboard)
 
 
-def get_search_keyboard():
+def get_search_keyboard(db, chat_data):
+    my_lang = db.get_language(chat_data['lang'])
     keyboard = [['qw', 'e', 'r', 't', 'y', 'u', 'i', 'op'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'kl'],
                 ['z', 'x', 'c', 'v', 'b', 'n', 'm']]
     keyboard = [[InlineKeyboardButton(col, callback_data='searchkb_' + col) for col in row] for row in keyboard]
+    if not chat_data['lang'] in db.get_languages(chat_data['bot']):
+        keyboard = [[InlineKeyboardButton((my_lang[1] + ' ' if my_lang[1] else '') + my_lang[0],
+                                          callback_data='searchkb_' + chat_data['lang'] + ' full')]] + keyboard
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -235,7 +239,8 @@ def have_translate_data(update, chat_data, bot, edit=True, add=''):
     db = Database(cfg)
     language = db.get_language(chat_data['tlang'])
     chat_data['lang_to'] = language[0] + ' ' + language[1] if language[1] else language[0]
-    add = add + strings[chat_data['lang']]['tr_from_g'].replace('@lang', chat_data['lang_to']) + ' 🙂 \n\n'
+    if not add == '':
+        add = add + strings[chat_data['lang']]['tr_from_g'].replace('@lang', chat_data['lang_to']) + ' 🙂 \n\n'
     msg = add + strings[chat_data['lang']]['tr_start'] + '\n' + strings[chat_data['lang']]['tr_instr'] + ' 😁'
     if edit:
         update.message.edit_text(get_start_text(chat_data, add=msg))
@@ -275,7 +280,7 @@ def manage_search_kb(update, chat_data, bot):
     else:
         msg = strings[chat_data['lang']]['tr_to_f'] + ' 😬\n' + strings[chat_data['lang']]['again']
         update.callback_query.message.edit_text(get_start_text(chat_data, add=msg),
-                                                reply_markup=get_search_keyboard())
+                                                reply_markup=get_search_keyboard(db, chat_data))
 
 
 def get_tworow_keyboard(str_list, callback):
@@ -326,6 +331,9 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
         if 'lone' in chat_data:
             chat_data['ltwo'] = arg_two
             manage_search_kb(update, chat_data, bot)
+        elif arg_two.split(' ')[-1] == 'full':
+            chat_data['tlang'] = arg_two.split(' ')[0]
+            have_translate_data(update.callback_query, chat_data, bot)
         else:
             chat_data['lone'] = arg_two
     elif arg_one == 'tlang':
