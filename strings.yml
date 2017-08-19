@@ -34,6 +34,7 @@ de:
   reject: "Nein"
   transl: Übersetzung
   skip: Überspringen
+  back: Zurück
   sugg: Vorschlag
   from: Von
   to: Nach
@@ -59,3 +60,4 @@ de:
   tr_start: Alles klar! Jetzt können wir starten!
   tr_instr: Deine Aufgabe ist es, eine vorgeschlagene Übersetzung auszuwählen oder mir eine bessere zu senden
   tr_by: von
+  tr_old: Bitte nur neue Vorschläge machen!

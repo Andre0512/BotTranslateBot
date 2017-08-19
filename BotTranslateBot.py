@@ -211,6 +211,13 @@ class Database:
         self.con.close()
 
 
+def get_std_keyboard(chat_data):
+    keyboard = ReplyKeyboardMarkup(
+        [['➕ ' + strings[chat_data['lang']]['add_bot'], '👤 ' + strings[chat_data['lang']]['my_profile']]],
+        resize_keyboard=True)
+    return keyboard
+
+
 def start(bot, update, chat_data):
     db = Database(cfg)
     state, lang = db.insert_user(update.message.from_user)
@@ -265,7 +272,9 @@ def reply(bot, update, chat_data):
             TranslateBot.translate_text(update, chat_data, db, int(chat_data['mode'].split('_')[1]), bot, first=True,
                                         confirm=True)
         else:
-            TranslateBot.translate_text(update, chat_data, db, int(chat_data['mode'].split('_')[1]), bot, first=True)
+            add = '\n❌ ' + strings[chat_data['lang']]['tr_old']
+            TranslateBot.translate_text(update, chat_data, db, int(chat_data['mode'].split('_')[1]), bot, first=True,
+                                        add=add)
     else:
         if update.message.text == '➕ ' + strings[chat_data['lang']]['add_bot']:
             AddBot.add_bot(update, chat_data['lang'])
@@ -287,7 +296,8 @@ def reply_button(bot, update, chat_data):
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
-    if arg_one in ['langyes', 'langno', 'fromlang', 'tlang', 'searchkb', 'translnav', 'google', 'confirm']:
+    if arg_one in ['langyes', 'langno', 'fromlang', 'tlang', 'searchkb', 'translnav', 'transldone', 'google',
+                   'confirm']:
         TranslateBot.reply_button(bot, update, chat_data, arg_one, arg_two)
     update.callback_query.answer()
 
