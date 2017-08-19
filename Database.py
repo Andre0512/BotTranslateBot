@@ -190,6 +190,18 @@ class Database:
         result = None if len(items) == 0 else items[0][0]
         return result
 
+    def get_conf_stats(self, user_id, transl_id):
+        self.cur.execute(
+            "SELECT COUNT(w.creator_id), w.creator_id FROM confirmations c INNER JOIN words w ON " +
+            "c.word_id=w.id WHERE c.user_id=%s AND w.translation_id=%s GROUP BY w.creator_id", (user_id, transl_id))
+        result = {item[1]: item[0] for item in self.cur.fetchall()}
+        return result
+
+    def get_own_words(self, user_id, transl_id):
+        self.cur.execute("SELECT COUNT(id) FROM words WHERE translation_id=%s AND creator_id=%s", (transl_id, user_id))
+        result = self.cur.fetchall()[0][0]
+        return result
+
     def rollback(self):
         self.con.rollback()
 

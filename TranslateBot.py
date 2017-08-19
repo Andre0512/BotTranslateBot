@@ -141,7 +141,7 @@ def get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=Fals
                                           callback_data='translnav_' + str(number - 1) if active else 'Wait'),
                      InlineKeyboardButton(
                          (strings[chat_data['lang']]['skip'] + ' ▶️') if number < len(chat_data['strings']) - 1 else '',
-                         callback_data='translnav_' + str(number - 1) if active else 'Wait')])
+                         callback_data='translnav_' + str(number + 1) if active else 'Wait')])
     keyboard.append([InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['done'],
                                           callback_data='transldone_' + str(number) if active else 'Wait')])
     return InlineKeyboardMarkup(keyboard)
@@ -303,20 +303,45 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
         db = Database(cfg)
         word_id = arg_two.split(' ')[0] if arg_one == 'confirm' else None
         number = int(arg_two.split(' ')[1]) if arg_one == 'confirm' else int(arg_two)
-        string_id = chat_data['strings'][number]
-        db.insert_confirmation(word_id, string_id - 1, update.callback_query.message.chat.id, chat_data['tlangid'])
-        if number >= 0 and number < len(chat_data['strings']):
+        string_id = chat_data['strings'][number - 1]
+        db.insert_confirmation(word_id, string_id, update.callback_query.message.chat.id, chat_data['tlangid'])
+        if number >= len(chat_data['strings']):
+            translation_done(bot, update, chat_data, number - 1, add=strings[chat_data['lang']]['tr_end'] + ' 🎉\n\n')
+        else:
             translate_text(update.callback_query, chat_data, db, number, bot)
     elif arg_one == 'transldone':
-        translate_text(update.callback_query, chat_data, Database(cfg), int(arg_two), bot, end=True)
-        chat_data.pop('bot', None)
-        chat_data.pop('flang', None)
-        chat_data.pop('tlang', None)
-        chat_data.pop('mode', None)
-        chat_data.pop('strings', None)
-        chat_data.pop('tlangid', None)
-        chat_data.pop('flangid', None)
-        update.callback_query.message.reply_text('Hi!')#, reply_markup=get_std_keyboard(chat_data))
+        translation_done(bot, update, chat_data, arg_two)
+
+
+def calc_translation_stats(user_id, transl_id, total):
+    db = Database(cfg)
+    stats = db.get_conf_stats(user_id, transl_id)
+    own_words = db.get_own_words(user_id, transl_id)
+    google = str(round(stats[0] / total * 100, 2)) if 0 in stats else str(0.00)
+    own = str(round(stats[user_id] / total * 100, 2)) if user_id in stats else str(0.00)
+    msg = str(own_words) + " Strings vorgeschlagen\n"
+    msg = msg + google + '% Google\n' + own + '% Eigene\n'
+    skipped = sum(stats.values())
+    stats.pop(user_id, None)
+    stats.pop(0, None)
+    others = sum(stats.values())
+    msg = msg + str(round(others / total * 100, 2)) + '% Andere\n' if others > 0 else msg
+    msg = msg + str(round((total - skipped) / total * 100, 2)) + '% Übersprungen\n' if skipped > 0 else msg
+    return msg
+
+
+def translation_done(bot, update, chat_data, arg_two, add=''):
+    translate_text(update.callback_query, chat_data, Database(cfg), int(arg_two), bot, end=True)
+    msg = calc_translation_stats(update.callback_query.message.chat.id, chat_data['tlangid'], len(chat_data['strings']))
+    chat_data.pop('bot', None)
+    chat_data.pop('flang', None)
+    chat_data.pop('tlang', None)
+    chat_data.pop('mode', None)
+    chat_data.pop('strings', None)
+    chat_data.pop('tlangid', None)
+    chat_data.pop('flangid', None)
+    msg = add + strings[chat_data['lang']]['tr_thanks'] + ' 💙\n\n' + msg
+    update.callback_query.message.reply_text(msg, reply_markup=get_std_keyboard(chat_data))
 
 
 def set_global(config, all_strings):
