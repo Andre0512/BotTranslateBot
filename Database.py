@@ -149,6 +149,10 @@ class Database:
         return [lang_native.encode('utf-8').decode('unicode-escape'), flag.encode('utf-8').decode(
             'unicode-escape') if flag else None, lang]
 
+    def get_google(self, lang_code):
+        self.cur.execute("SELECT google FROM languages WHERE language_code=%s", (lang_code,))
+        return self.cur.fetchall()[0][0]
+
     def get_bot_number(self, user_id):
         query = """SELECT COUNT(name), SUM(string), SUM(lang), SUM(value) FROM ( SELECT b.name, COUNT(DISTINCT s.name) 
         AS string, COUNT(DISTINCT t.lang_code) as lang, COUNT(w.value) as value FROM bots b INNER JOIN strings s ON 

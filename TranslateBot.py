@@ -67,7 +67,7 @@ def start_translation(bot, update, chat_data, edit=False):
     elif len(lang_list) == 1:
         chat_data['flang'] = lang_list[0][1]
         add = strings[chat_data['lang']]['tr_from_o'].replace('@lang', lang_list[0][0]) + (
-            ', ' + strings[chat_data['lang']]['tr_from_o'] + ' 😬' if not tfrom else ' 🙃') + '\n\n'
+            ', ' + strings[chat_data['lang']]['tr_from_a'] + ' 😬' if not tfrom else ' 🙃') + '\n\n'
         if tto:
             chat_data['tlang'] = tto[0]
             choose_lang_to(update, chat_data, bot, add2=add, edit=edit)
@@ -163,14 +163,16 @@ def get_number_emoji(number):
     return result
 
 
-def get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=False):
+def get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=False, google=True):
     keyboard = []
     for index, word_id in enumerate(transl_words):
         keyboard.append(InlineKeyboardButton((strings[chat_data['lang']]['sugg'] if owner != word_id[4] else
                                               '👨‍💻 ' + strings[chat_data['lang']]['original']) + ' ' + str(
             get_number_emoji(index + 1)), callback_data='confirm_' + str(word_id[1]) + ' ' + str(
             number + 1) if active else 'Wait'))
-    keyboard.append(InlineKeyboardButton('Google 🗣', callback_data='google_' + str(number + 1) if active else 'Wait'))
+    if google:
+        keyboard.append(
+            InlineKeyboardButton('Google 🗣', callback_data='google_' + str(number + 1) if active else 'Wait'))
     keyboard = [InlineKeyboardButton('✔️ ' + strings[chat_data['lang']]['sugg'] + ' ' + str(
         get_number_emoji(len(transl_words))), callback_data='confirm_' + str(transl_words[-1][1]) + ' ' + str(
         number + 1) if active else 'Wait')] if confirm else keyboard
@@ -199,22 +201,23 @@ def translate_text(update, chat_data, db, number, bot, first=False, confirm=Fals
         chat_data.pop('confirm_own', None)
     # elif 'confirm_own' in chat_data:
     #    if transl_words[-1][0] in [transl_words[:][0] + google]
-    google_exists = False
-    google = "Übersetzen...\n"
-    google_confirm = ''
-    if len(transl_words) > 0 and transl_words[0][3] == 'google':
+    if 'glang' not in chat_data:
+        google_exists = False
+        google = "Übersetzen...\n"
+        google_confirm = ''
+        if len(transl_words) > 0 and transl_words[0][3] == 'google':
+            google_exists = True
+            google = transl_words[0][0]
+            google_confirm = ' (' + str(transl_words[0][2]) + 'x👍)' if transl_words[0][2] > 0 else ''
+            del transl_words[0]
+    else:
         google_exists = True
-        google = transl_words[0][0]
-        google_confirm = ' (' + str(transl_words[0][2]) + 'x👍)' if transl_words[0][2] > 0 else ''
-        del transl_words[0]
     length = str(len(chat_data['strings']))
     msg = '@' + chat_data['bot'] + ' ' + strings[chat_data['lang']]['transl'] + ' ' + (
         str(number + 1) if (number + 1) > 9 else '0' + str(number + 1)) + '/' + (
               length if int(length) > 9 else '0' + length) + ' ' + get_the_world(number) + '\n' + get_progress_bar(
-        number,
-        len(
-            chat_data[
-                'strings'])) + '\n\n_' + word + '_' + '\n\n*Google Translate 🗣*' + google_confirm + '\n`' + google + '`'
+        number, len(chat_data['strings'])) + '\n\n_' + word + '_'
+    msg = msg + '\n\n*Google Translate 🗣*' + google_confirm + '\n`' + google + '`' if 'glang' not in chat_data else msg
     for index, string in enumerate(transl_words):
         msg = msg + '\n*' + (
             strings[chat_data['lang']]['sugg'] if owner != string[4] else '👨‍💻 ' + strings[chat_data['lang']][
@@ -223,7 +226,8 @@ def translate_text(update, chat_data, db, number, bot, first=False, confirm=Fals
                   ' (*' + str(string[2]) + '*x👍)' if string[2] > 1 else '') + '\n`' + string[0] + '`\n'
         # + ('\n\[' + strings[chat_data['lang']]['tr_by'] + ' @' + string[3] + ']' if string[3] else '')
     msg = msg + add
-    keyboard = '' if end else get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=google)
+    keyboard = '' if end else get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=google_exists,
+                                              google='glang' not in chat_data)
     if first:
         msg_data = update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN, action=ChatAction.TYPING,
                                              reply_markup=keyboard)
@@ -231,7 +235,7 @@ def translate_text(update, chat_data, db, number, bot, first=False, confirm=Fals
         msg_data = update.message.edit_text(msg, parse_mode=ParseMode.MARKDOWN, action=ChatAction.TYPING,
                                             reply_markup=keyboard)
     chat_data['mode'] = 'tr_' + str(number)
-    if not google_exists:
+    if not google_exists and not 'glang' in chat_data:
         add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_words, confirm, owner, db)
 
 
@@ -256,6 +260,8 @@ def have_translate_data(update, chat_data, bot, edit=True, add=''):
         chat_data['tlangid'] = db.get_translation(chat_data['bot'], chat_data['tlang'])
     chat_data.pop('lang_from', None)
     chat_data.pop('lang_to', None)
+    if db.get_google(chat_data['tlang']) == 0:
+        chat_data['glang'] = True
     translate_text(update, chat_data, db, 0, bot, first=True)
 
 
@@ -267,6 +273,7 @@ def manage_search_kb(update, chat_data, bot):
             lang_list = dict(list(lang_list.items()) + list(db.search_language(first + second).items()))
     chat_data.pop('lone', None)
     chat_data.pop('ltwo', None)
+    lang_list.pop(chat_data['lang'], None)
     if len(list(lang_list)) > 1:
         keyboard = []
         for key, value in lang_list.items():
