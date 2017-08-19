@@ -46,7 +46,7 @@ def start(bot, update, chat_data):
         if state:
             TranslateBot.start_translate_new(update, chat_data)
         else:
-            TranslateBot.start_translation(update, chat_data)
+            TranslateBot.start_translation(bot, update, chat_data)
 
 
 def read_languages(bot, update):
@@ -103,7 +103,7 @@ def reply_button(bot, update, chat_data):
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
         AddBot.reply_button(bot, update, chat_data, arg_one, arg_two)
-    if arg_one in ['langyes', 'langno', 'fromlang', 'tlang', 'searchkb', 'translnav', 'transldone', 'google',
+    if arg_one in ['langyes', 'langno', 'langcho', 'fromlang', 'tlang', 'searchkb', 'translnav', 'transldone', 'google',
                    'confirm']:
         TranslateBot.reply_button(bot, update, chat_data, arg_one, arg_two)
     update.callback_query.answer()

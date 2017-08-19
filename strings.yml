@@ -54,6 +54,9 @@ de:
   tr_lang_no: Nein, andere
   tr_lang_cho: Du kannst aktuell zwischen folgenden Sprachen wählen
   tr_from: Aus welcher Sprache willst du übersetzen?\nDer Bot ist aktuell in folgenden Sprachen verfügbar
+  tr_from_o: Als Ausgangssprache wurde automatisch @lang ausgewählt
+  tr_from_g: Als Zielsprache wurde automatisch @lang ausgewählt
+  tr_from_a: aktuell steht keine andere Sprache zur Verfügung
   tr_to: In welche Sprache soll übersetzt werden?\nDiese Tastatur hilft dir deine Sprache in den circa 200 unterstützen Sprachen zu finden
   tr_to_ask: Welche der Folgenden meintest du?
   tr_to_f: Entschuldigung, leider konnte ich nichts finden
