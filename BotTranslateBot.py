@@ -33,6 +33,9 @@ def start(bot, update, chat_data):
     else:
         if 'lang' not in chat_data:
             chat_data['lang'] = db.get_user_data(update.message.from_user.id)
+        temp = chat_data['lang']
+        chat_data.clear()
+        chat_data['lang'] = temp
     if lang not in strings:
         chat_data['lang'] = 'en'
         chat_data['orginal_lang'] = lang

@@ -105,8 +105,9 @@ def start_translate_new(update, chat_data, edit=False):
     db = Database(cfg)
     user = update.callback_query.message.chat.first_name if edit else update.message.from_user.first_name
     language, flag, x = db.get_language(chat_data['orginal_lang'] if 'orginal_lang' in chat_data else chat_data['lang'])
-    msg = strings[chat_data['lang']]['tr_greeting'].replace('@name', user + ' ✌️')
-    msg = msg.replace('@bot_name', '@' + chat_data['bot'] if 'bot' in chat_data else 'Bots')
+    bot = (('@' + re.sub('_[a-z]{2}$', '', re.sub('_[a-z]{2}$', '', chat_data['bot']))) if 'bot' in chat_data else
+           strings[chat_data['lang']]['bots'])
+    msg = strings[chat_data['lang']]['tr_greeting'].replace('@name', user + ' ✌️').replace('@bot_name', bot)
     lang_str = 'tr_lang_c' if edit else 'tr_lang'
     msg = msg + ' 🌏\n\n' + strings[chat_data['lang']][lang_str].replace('@lang', language) + ' ☺️\n'
     yes = '✔️ ' + strings[chat_data['lang']]['agree'] + ' ' + (flag if flag else '')
@@ -365,30 +366,38 @@ def reply_button(bot, update, chat_data, arg_one, arg_two):
         translation_done(bot, update, chat_data, arg_two)
 
 
-def calc_translation_stats(user_id, transl_id, total, msg):
+def calc_translation_stats(user_id, transl_id, total, string, chat_data):
     emoji = ['😀', '😃', '😁', '☺️', '😍']
     hearts = ['❤️', '💛', '💚', '💙', '💜', '🖤']
-    msg = msg + ' ' + emoji[random.randint(0, 4)] + hearts[random.randint(0, 5)] + '\n\n'
+    suggested = ['👨‍🏫', '👩‍🏫'][random.randint(0, 1)]
+    msg = string['tr_thanks'] + ' ' + emoji[random.randint(0, 4)] + hearts[random.randint(0, 5)] + '\n\n'
     db = Database(cfg)
+    from_lang = db.get_language(chat_data['flang'])
+    to_lang = db.get_language(chat_data['tlang'])
+    from_lang = ((from_lang[1] + ' ') if from_lang[1] else '') + from_lang[2]
+    to_lang = ((to_lang[1] + ' ') if to_lang[1] else '') + to_lang[2]
     stats = db.get_conf_stats(user_id, transl_id)
+    skipped = sum(stats.values())
     own_words = db.get_own_words(user_id, transl_id)
     google = str(round(stats[0] / total * 100, 2)) if 0 in stats else str(0.00)
     own = str(round(stats[user_id] / total * 100, 2)) if user_id in stats else str(0.00)
-    msg = msg + str(own_words) + " Strings vorgeschlagen\n"
-    msg = msg + google + '% Google\n' + own + '% Eigene\n'
-    skipped = sum(stats.values())
+    msg = msg + '*' + str(own_words) + '* ' + string['str_sug'] + ' ' + suggested + '\n*' + str(skipped) + ' *' + \
+          string['str_conf'] + ':\n'
+    msg = msg + '*' + google + '%* Google 🗣\n*' + own + '%* ' + string['own'] + ' 👤\n'
     stats.pop(user_id, None)
     stats.pop(0, None)
     others = sum(stats.values())
-    msg = msg + str(round(others / total * 100, 2)) + '% Andere\n' if others > 0 else msg
-    msg = msg + str(round((total - skipped) / total * 100, 2)) + '% Übersprungen\n'
+    msg = msg + '*' + str(round(others / total * 100, 2)) + '%* ' + string['others'] + ' 👥\n' if others > 0 else msg
+    msg = msg + '*' + str(round((total - skipped) / total * 100, 2)) + '%* ' + string['skipped'] + ' ▶️\n\n'
+    msg = msg + string['translated'].replace('@bot', '@' + chat_data['bot']).replace('@lang_from', from_lang).replace(
+        '@lang_to', to_lang)
     return msg
 
 
 def translation_done(bot, update, chat_data, arg_two, add=''):
     translate_text(update.callback_query, chat_data, Database(cfg), int(arg_two), bot, end=True)
     msg = calc_translation_stats(update.callback_query.message.chat.id, chat_data['tlangid'], len(chat_data['strings']),
-                                 strings[chat_data['lang']]['tr_thanks'])
+                                 strings[chat_data['lang']], chat_data)
     chat_data.pop('bot', None)
     chat_data.pop('flang', None)
     chat_data.pop('tlang', None)
@@ -397,7 +406,8 @@ def translation_done(bot, update, chat_data, arg_two, add=''):
     chat_data.pop('tlangid', None)
     chat_data.pop('flangid', None)
     msg = add + msg
-    update.callback_query.message.reply_text(msg, reply_markup=get_std_keyboard(chat_data))
+    update.callback_query.message.reply_text(msg, reply_markup=get_std_keyboard(chat_data),
+                                             parse_mode=ParseMode.MARKDOWN)
 
 
 def set_global(config, all_strings):

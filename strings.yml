@@ -66,3 +66,10 @@ de:
   tr_old: Bitte nur neue Vorschläge machen!
   tr_end: Wir haben es geschafft!
   tr_thanks: Danke für deine Hilfe
+  own: Eigene
+  others: Andere
+  skipped: Übersprungen
+  str_sug: Strings vorgeschlagen
+  str_conf: Strings bestätigt
+  translated: Danke das du dabei geholfen hast @bot von @lang_from nach @lang_to zu übersetzen!
+  bots: Bots
