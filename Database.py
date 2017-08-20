@@ -212,6 +212,16 @@ class Database:
         result = self.cur.fetchall()[0][0]
         return result
 
+    def get_bots(self, user_id):
+        self.cur.execute("SELECT b.id, b.name FROM bots b INNER JOIN users u ON b.owner_id=u.id WHERE u.id=%s "
+                         "ORDER BY b.timestamp DESC", (user_id,))
+        result = [[item[0], item[1]] for item in self.cur.fetchall()]
+        return result
+
+    def get_bot_by_id(self, bot_id):
+        self.cur.execute("SELECT name FROM bots WHERE id=%s", (bot_id))
+        return self.cur.fetchall()[0][0]
+
     def rollback(self):
         self.con.rollback()
 

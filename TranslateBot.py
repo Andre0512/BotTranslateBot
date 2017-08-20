@@ -12,8 +12,8 @@ from Database import Database
 
 def get_std_keyboard(chat_data):
     keyboard = ReplyKeyboardMarkup(
-        [['➕ ' + strings[chat_data['lang']]['add_bot'], '👤 ' + strings[chat_data['lang']]['my_profile']]],
-        resize_keyboard=True)
+        [['➕ ' + strings[chat_data['lang']]['add_bot'], '👤 ' + strings[chat_data['lang']]['my_profile']],
+         ['🤖 ' + strings[chat_data['lang']]['my_bots']]], resize_keyboard=True)
     return keyboard
 
 
@@ -29,7 +29,7 @@ def add_google_translation(chat_data, word, msg, msg_data, number, bot, transl_w
             db.insert_word(result, chat_data['strings'][int(number)], chat_data['tlangid'], 0)
         else:
             result = response.stderr.decode('utf-8')
-    msg = msg.replace("Übersetzen" + "...\n", result)
+    msg = msg.replace("Übersetzen" + "...\n", escape_markdown(result))
     bot.edit_message_text(chat_id=msg_data.chat.id, message_id=msg_data.message_id, text=msg,
                           parse_mode=ParseMode.MARKDOWN,
                           reply_markup=get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=True))
@@ -194,6 +194,12 @@ def get_the_world(number):
     return world[number % 3]
 
 
+def escape_markdown(text):
+    """Helper function to escape telegram markup symbols"""
+    escape_chars = '\*_`\[\]'
+    return re.sub(r'([%s])' % escape_chars, r'\\\1', text)
+
+
 def translate_text(update, chat_data, db, number, bot, first=False, confirm=False, add='', end=False):
     word = db.get_word(chat_data['strings'][number], chat_data['flangid'])[0]
     transl_words = db.get_words(chat_data['strings'][number], chat_data['tlangid'])
@@ -217,14 +223,15 @@ def translate_text(update, chat_data, db, number, bot, first=False, confirm=Fals
     msg = '@' + chat_data['bot'] + ' ' + strings[chat_data['lang']]['transl'] + ' ' + (
         str(number + 1) if (number + 1) > 9 else '0' + str(number + 1)) + '/' + (
               length if int(length) > 9 else '0' + length) + ' ' + get_the_world(number) + '\n' + get_progress_bar(
-        number, len(chat_data['strings'])) + '\n\n_' + word + '_'
-    msg = msg + '\n\n*Google Translate 🗣*' + google_confirm + '\n`' + google + '`' if 'glang' not in chat_data else msg
+        number, len(chat_data['strings'])) + '\n\n_' + escape_markdown(word).replace('\n', '_\n_').replace('\_',
+                                                                                                           '_\__') + '_'
+    msg = msg + '\n\n*Google Translate 🗣*' + google_confirm + '\n```\n' + google + '```' if 'glang' not in chat_data else msg
     for index, string in enumerate(transl_words):
         msg = msg + '\n*' + (
             strings[chat_data['lang']]['sugg'] if owner != string[4] else '👨‍💻 ' + strings[chat_data['lang']][
                 'original']) + '* ' + str(
             get_number_emoji(index + 1)) + (
-                  ' (*' + str(string[2]) + '*x👍)' if string[2] > 1 else '') + '\n`' + string[0] + '`\n'
+                  ' (*' + str(string[2]) + '*x👍)' if string[2] > 1 else '') + '\n```\n' + string[0] + '```\n'
         # + ('\n\[' + strings[chat_data['lang']]['tr_by'] + ' @' + string[3] + ']' if string[3] else '')
     msg = msg + add
     keyboard = '' if end else get_tr_keyboard(number, chat_data, transl_words, confirm, owner, active=google_exists,
@@ -407,6 +414,7 @@ def calc_translation_stats(user_id, transl_id, total, string, chat_data):
     msg.append(string['translated'].replace('@bot', '@' + chat_data['bot']).replace('@lang_from', from_lang).replace(
         '@lang_to', to_lang))
     data = [chat_data['bot'], from_lang, to_lang, skipped]
+    msg[0] = '' if skipped == 0 else msg[0]
     return [msg, db, data]
 
 

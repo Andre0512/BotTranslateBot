@@ -74,3 +74,12 @@ de:
   translated: Danke das du dabei geholfen hast @bot von @lang_from nach @lang_to zu übersetzen!
   notify: "@user hat geholfen @bot von @from nach @to zu übersetzen"
   bots: Bots
+  my_bots: Meine Bots
+  del_no1: Ups, nein!
+  del_no2: Besser nicht
+  del_no3: Fuck, NEIN
+  del_no4: Auf keinen Fall
+  del_yes: Ja, 100%ig sicher
+  del_q: Bist du dir sicher das du @bot löschen willst?
+  del_q2: Wenn du @bot löschst werden ALLE dazugehörigen DATEN GELÖSCHT! Alle Übersetzungen gehen unwiederruflich verloren. Ganz sicher?
+  del_conf: "erfolgreich gelöscht"
