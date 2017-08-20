@@ -84,7 +84,8 @@ def reply(bot, update, chat_data):
         elif update.message.text == '👤 ' + strings[chat_data['lang']]['my_profile']:
             TranslateBot.my_profile(update, chat_data)
         elif update.message.text == '🤖 ' + strings[chat_data['lang']]['my_bots']:
-            list_bots(db, update, chat_data)
+            update.message.reply_text(strings[chat_data['lang']]['bot_cho'] + ' ☺️',
+                                      reply_markup=get_bots_keyboard(db, update.message.from_user.id))
         else:
             update.message.reply_text(update.message.text, reply_markup=TranslateBot.get_std_keyboard(chat_data))
 
@@ -120,12 +121,19 @@ def get_delete_keyboard(string, args, del_list):
     return InlineKeyboardMarkup(keyboard)
 
 
-def list_bots(db, update, chat_data):
-    update.message.reply_text('Test', reply_markup=get_bots_keyboard(db, update.message.from_user.id))
-
-
 def handle_file(bot, update, chat_data):
     AddBot.handle_file(bot, update, chat_data)
+
+
+def get_bot_text(bot_id, string):
+    db = Database(cfg)
+    bot_name = db.get_bot_by_id(bot_id)
+    string_number = db.get_strings_number(bot_id)
+    translations = db.get_translations_number(bot_id)
+    msg = '@' + bot_name + ' 🤖\n' + string['bot_str'].replace('@string', '*' + str(string_number) + '*') + ' 📝 \n' + \
+          string['bot_lang'].replace('@langtotal', '*' + str(sum(list(translations.values()))) + '*').replace(
+              '@langfull', '*' + str(translations[0]) + '*') + ' 😁'
+    return msg
 
 
 def reply_button(bot, update, chat_data):
@@ -142,10 +150,12 @@ def reply_button(bot, update, chat_data):
     elif arg_one in ['navbot', 'botback']:
         db = Database(cfg)
         keyboard = get_bots_keyboard(db, update.callback_query.message.chat.id, page=int(arg_two.split(' ')[-1]))
-        update.callback_query.message.edit_text('Text', reply_markup=keyboard)
+        update.callback_query.message.edit_text(strings[chat_data['lang']]['bot_cho'] + ' ☺️', reply_markup=keyboard)
     elif arg_one == 'mybot':
         bot_id, page_id = arg_two.split(' ')
-        update.callback_query.message.edit_text('Text', reply_markup=get_bot_keyboard(bot_id, page_id))
+        update.callback_query.message.edit_text(get_bot_text(bot_id, strings[chat_data['lang']]),
+                                                reply_markup=get_bot_keyboard(bot_id, page_id),
+                                                parse_mode=ParseMode.MARKDOWN)
     elif arg_one == 'bottransl':
         db = Database(cfg)
         chat_data['bot'] = db.get_bot_by_id(arg_two)
@@ -171,7 +181,8 @@ def reply_button(bot, update, chat_data):
             db.delete_bot(bot_name)
             update.callback_query.answer(bot_name + ' ' + strings[chat_data['lang']]['del_conf'] + ' 👌')
             keyboard = get_bots_keyboard(db, update.callback_query.message.chat.id)
-            update.callback_query.message.edit_text('Text', reply_markup=keyboard)
+            update.callback_query.message.edit_text(strings[chat_data['lang']]['bot_cho'] + ' ☺️',
+                                                    reply_markup=keyboard)
     update.callback_query.answer()
 
 

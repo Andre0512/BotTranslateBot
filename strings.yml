@@ -83,3 +83,6 @@ de:
   del_q: Bist du dir sicher das du @bot löschen willst?
   del_q2: Wenn du @bot löschst werden ALLE dazugehörigen DATEN GELÖSCHT! Alle Übersetzungen gehen unwiederruflich verloren. Ganz sicher?
   del_conf: "erfolgreich gelöscht"
+  bot_cho: Wähle einen Bot aus
+  bot_str: Mit @string Strings
+  bot_lang: In @langtotal Sprachen, davon @langfull vollständig

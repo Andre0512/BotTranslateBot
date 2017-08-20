@@ -222,6 +222,15 @@ class Database:
         self.cur.execute("SELECT name FROM bots WHERE id=%s", (bot_id))
         return self.cur.fetchall()[0][0]
 
+    def get_translations_number(self, bot_id):
+        self.cur.execute("SELECT COUNT(id), state FROM translations WHERE bot_id=%s GROUP BY state", (bot_id,))
+        result = {item[1]:item[0] for item in self.cur.fetchall()}
+        return result
+
+    def get_strings_number(self, bot_id):
+        self.cur.execute("SELECT COUNT(id) FROM strings WHERE bot_id=%s", (bot_id,))
+        return self.cur.fetchall()[0][0]
+
     def rollback(self):
         self.con.rollback()
 
