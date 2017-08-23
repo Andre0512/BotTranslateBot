@@ -151,7 +151,7 @@ def my_profile(update, chat_data):
 
 
 def get_progress_bar(value, total):
-    result = '█' * round(value / total * 16)
+    result = '█' * round((value + 1) / total * 16)
     result = result + round(16 - len(result)) * '▒'
     return result
 
@@ -380,8 +380,9 @@ def notify_owner(bot, db, stats, data, bot_name, user_id, notify):
         me = users[user_id]
         users.pop(user_id)
         owner = list(users)[0]
-        me = me[0] + ' ' + ((me[1] + ' ') if me[1] else '') + (('(@' + me[2] + ') ') if me[2] else '')
-        msg = notify.replace('@user ', me).replace('@bot', '@' + data[0])
+        me = me[0] + ' ' + ((me[1] + ' ') if me[1] else '')
+        msg = notify.replace('@user ',
+                             '[' + me + '](tg://user?id=' + str(user_id) + ')').replace('@bot', '@' + data[0])
         msg = msg.replace('@from', data[1]).replace('@to', data[2]) + ' 😊\n\n' + stats
         bot.send_message(chat_id=owner, text=msg, parse_mode=ParseMode.MARKDOWN)
 
@@ -427,6 +428,7 @@ def translation_done(bot, update, chat_data, arg_two, add=''):
     chat_data.pop('bot', None)
     chat_data.pop('flang', None)
     chat_data.pop('tlang', None)
+    chat_data.pop('glang', None)
     chat_data.pop('mode', None)
     chat_data.pop('strings', None)
     chat_data.pop('tlangid', None)
