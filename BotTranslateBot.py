@@ -98,7 +98,8 @@ def get_bots_keyboard(db, user_id, page=0):
     keyboard = [InlineKeyboardButton(bot[1], callback_data='mybot_' + str(bot[0]) + ' ' + str(page)) for bot in bots]
     keyboard = [keyboard[i:i + 2] for i in range(0, len(keyboard), 2)]
     keyboard.append(([InlineKeyboardButton('◀️', callback_data='navbot_' + str(page - 1))] if page > 0 else []) + (
-        [InlineKeyboardButton('▶️', callback_data='navbot_' + str(page + 1))] if length >= 6 * (page + 1) else []))
+        [InlineKeyboardButton('▶️', callback_data='navbot_' + str(page + 1))] if length >= 6 * (
+        page + 1) and length > 8 else []))
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -139,7 +140,7 @@ def get_bot_text(bot_id, string):
 def reply_button(bot, update, chat_data):
     if 'lang' not in chat_data:
         db = Database(cfg)
-        chat_data['lang'] = db.get_user_data(update.message.from_user.id)
+        chat_data['lang'] = db.get_user_data(update.callback_query.message.chat.id)
     arg_list = update.callback_query.data.split("_")
     arg_one, arg_two = arg_list if len(arg_list) > 1 else [arg_list[0], None]
     if arg_one in ['langkeyboard', 'language', 'langchoosen', 'format', 'exitadding', 'langdelete']:
